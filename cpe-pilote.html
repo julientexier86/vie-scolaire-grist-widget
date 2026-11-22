@@ -1,0 +1,3389 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vie scolaire — Gestion RH des AED</title>
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+<script src="etat-grist.js"></script>
+<script src="backend-grist.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f1f5f9; color: #1e293b; user-select: none; }
+  button { cursor: pointer; font-family: inherit; }
+  input, select { font-family: inherit; }
+
+  header { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  #titre { flex: 1; min-width: 240px; font-size: 18px; font-weight: 600; border: none; border-bottom: 1px solid transparent; background: transparent; outline: none; }
+  #titre:focus { border-bottom-color: #60a5fa; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; font-size: 13px; background: #1e293b; color: #fff; border: none; border-radius: 8px; }
+  .btn:hover { background: #334155; }
+  .btn-bleu { background: #2563eb; } .btn-bleu:hover { background: #1d4ed8; }
+
+  .conteneur { display: flex; gap: 16px; padding: 16px; align-items: flex-start; }
+  aside { width: 290px; flex-shrink: 0; display: flex; flex-direction: column; gap: 14px; }
+  main { flex: 1; min-width: 0; }
+  @media (max-width: 900px) { .conteneur { flex-direction: column; } aside { width: 100%; } }
+
+  .carte { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; }
+  .carte h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #64748b; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+  .btn-plus { border: none; background: none; color: #2563eb; font-size: 18px; line-height: 1; padding: 2px 6px; border-radius: 6px; }
+  .btn-plus:hover { background: #eff6ff; }
+
+  .ligne-aed, .ligne-poste { border: 1px solid transparent; border-radius: 8px; padding: 6px 8px; cursor: pointer; margin-bottom: 3px; }
+  .ligne-aed:hover, .ligne-poste:hover { background: #f8fafc; }
+  .ligne-aed.actif, .ligne-poste.actif { border-color: #60a5fa; background: #eff6ff; }
+  .ligne-aed .rang1 { display: flex; align-items: center; gap: 6px; }
+  .ligne-aed input.nom { flex: 1; min-width: 0; border: none; background: transparent; outline: none; font-weight: 500; font-size: 13px; }
+  .ligne-aed input.quotite { width: 52px; text-align: right; font-size: 12px; background: #f1f5f9; border: none; border-radius: 4px; padding: 2px 4px; outline: none; }
+  .ligne-aed .contrat { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 5px; }
+  .ligne-aed .contrat label { font-size: 9.5px; color: #94a3b8; text-transform: uppercase; letter-spacing: .03em; }
+  .ligne-aed .contrat input, .ligne-aed .contrat select { width: 100%; margin-top: 1px; font-size: 10.5px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px; padding: 2px 3px; color: #475569; }
+  .ligne-aed .contact { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 5px; }
+  .ligne-aed .contact input { width: 100%; font-size: 10.5px; background: #fff; border: 1px solid #e2e8f0; border-radius: 5px; padding: 2px 4px; color: #475569; }
+  .rang2 { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+  .barre { flex: 1; height: 5px; background: #e2e8f0; border-radius: 99px; overflow: hidden; }
+  .barre > div { height: 100%; border-radius: 99px; background: #10b981; }
+  .barre > div.depasse { background: #f43f5e; }
+  .heures { font-size: 11px; font-weight: 500; color: #64748b; white-space: nowrap; }
+  .heures.depasse { color: #e11d48; }
+
+  .ligne-poste { display: flex; align-items: center; gap: 8px; }
+  .pastille { width: 12px; height: 12px; border-radius: 99px; flex-shrink: 0; }
+  .ligne-poste input { flex: 1; min-width: 0; border: none; background: transparent; outline: none; font-size: 13px; }
+  .btn-suppr { border: none; background: none; color: #94a3b8; padding: 2px; display: flex; }
+  .btn-suppr:hover { color: #f43f5e; }
+  .aide { font-size: 11px; color: #94a3b8; margin-top: 8px; }
+
+  .alerte { display: flex; gap: 6px; font-size: 12.5px; color: #b45309; margin-bottom: 5px; line-height: 1.35; }
+  .ok { font-size: 13px; color: #059669; }
+  .mini-contact { display: block; margin-top: 2px; font-size: 10.5px; color: #64748b; font-weight: 400; }
+  .liste-candidats { display: flex; flex-wrap: wrap; gap: 6px; }
+  .candidat { border: 1px solid #dbeafe; background: #eff6ff; border-radius: 7px; padding: 5px 7px; font-size: 12px; line-height: 1.3; }
+
+  .onglets { display: flex; gap: 8px; margin-bottom: 12px; }
+  .onglet { padding: 7px 14px; font-size: 13px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; }
+  .onglet.actif { background: #2563eb; color: #fff; border-color: #2563eb; }
+
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid #e2e8f0; }
+  th { background: #f8fafc; font-size: 12px; padding: 5px 8px; }
+  th .ss-total { font-weight: 400; color: #94a3b8; font-size: 11px; }
+  th .case-abs { display: block; font-weight: 400; font-size: 10px; color: #94a3b8; cursor: pointer; }
+  th .case-abs.on { color: #e11d48; font-weight: 700; text-transform: uppercase; }
+  th .case-abs input { vertical-align: -1px; margin-right: 2px; }
+  td.heure-col, th.heure-col { border: none; background: none; width: 46px; text-align: right; padding-right: 5px; font-size: 10.5px; color: #94a3b8; vertical-align: top; }
+  td.creneau { height: 4px; padding: 0; cursor: pointer; position: relative; border-top: none; border-bottom: none; }
+  td.creneau:hover { background: #f8fafc; }
+  td.creneau.occupe { cursor: grab; }
+  td.creneau.occupe:active { cursor: grabbing; }
+  td.creneau.deplacement-cible { outline: 1px solid #2563eb; outline-offset: -1px; z-index: 2; }
+  tr.cran-30 td.creneau { border-top: 1px dotted #e2e8f0; }
+  tr.cran-60 td.creneau { border-top: 1px solid #cbd5e1; }
+  tr:last-child td.creneau, tr:last-child td.presence { border-bottom: 1px solid #cbd5e1; }
+  td.creneau .etiquette { position: absolute; top: 1px; left: 3px; font-size: 10px; font-weight: 600; white-space: nowrap; z-index: 1; pointer-events: none; }
+
+  .entete-grille { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .entete-grille h3 { font-size: 15px; }
+  .entete-grille .sous { color: #94a3b8; font-weight: 400; font-size: 13px; }
+  .copie { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #64748b; }
+  .copie select { font-size: 12px; background: #f1f5f9; border: none; border-radius: 5px; padding: 3px 4px; }
+  .copie button { font-size: 12px; padding: 3px 10px; background: #2563eb; color: #fff; border: none; border-radius: 5px; }
+
+  .legende { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; font-size: 12px; }
+  .legende span { display: inline-flex; align-items: center; gap: 5px; }
+  .legende i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+
+  td.centre { text-align: center; padding: 5px 8px; font-size: 13px; }
+  td.cell-etude { text-align: center; padding: 6px 6px; font-size: 11px; color: #475569; }
+  td.cell-etude input.eff { width: 54px; text-align: center; font-size: 13px; font-weight: 600; border: 1px solid #cbd5e1; border-radius: 5px; padding: 2px; background: rgba(255,255,255,.75); }
+  td.cell-etude .detail { margin-top: 3px; }
+  td.presence { height: 4px; padding: 0; cursor: default; border-top: none; border-bottom: none; position: relative; }
+  .badge-n { position: absolute; left: 50%; transform: translateX(-50%); top: 1px; z-index: 1; font-size: 9px; font-weight: 600; line-height: 11px; padding: 0 4px; border-radius: 4px; background: rgba(255,255,255,.82); color: #1e293b; pointer-events: none; }
+  .badge-n.zero { color: #e11d48; }
+  tr.cran-30 td.presence { border-top: 1px dotted #e2e8f0; }
+  tr.cran-60 td.presence { border-top: 1px solid #cbd5e1; }
+
+  .statut-sauvegarde { font-size: 11px; color: #94a3b8; }
+  .heure-col .demi { font-size: 9px; color: #cbd5e1; }
+  #infobulle { position: fixed; z-index: 50; display: none; background: #1e293b; color: #fff; font-size: 11.5px; font-weight: 500; padding: 4px 9px; border-radius: 6px; pointer-events: none; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+
+  /* ---------- Fenêtre de saisie manuelle ---------- */
+  #voile { position: fixed; inset: 0; background: rgba(15,23,42,.45); display: none; z-index: 100; align-items: center; justify-content: center; }
+  #voile.ouvert { display: flex; }
+  .modal { background: #fff; border-radius: 14px; padding: 18px; width: 320px; box-shadow: 0 12px 40px rgba(0,0,0,.25); }
+  .modal h3 { font-size: 15px; margin-bottom: 12px; }
+  .modal .champ { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  .modal .champ label { font-size: 13px; color: #475569; }
+  .modal .champ input, .modal .champ select { font-size: 14px; padding: 5px 8px; border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; }
+  .modal .champ input[type="time"] { width: 120px; }
+  .modal .erreur { font-size: 12px; color: #e11d48; min-height: 16px; margin-bottom: 4px; }
+  .modal .boutons { display: flex; gap: 8px; justify-content: flex-end; }
+  .modal .boutons .suppr { margin-right: auto; background: #fff; color: #e11d48; border: 1px solid #fecdd3; }
+  .modal .boutons button { padding: 7px 14px; font-size: 13px; border-radius: 8px; border: none; }
+  .modal .boutons .annuler { background: #f1f5f9; color: #334155; }
+  .modal .boutons .valider { background: #2563eb; color: #fff; }
+  #format-impression { font-size: 13px; padding: 6px 8px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
+  .grp-semaine { display: inline-flex; align-items: center; gap: 2px; background: #f1f5f9; border-radius: 8px; padding: 2px 4px; }
+
+  /* ---------- Bandeau annuel (façon Pronote) ---------- */
+  #bande-annee { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 6px 16px 4px; }
+  #bande-sems { display: flex; gap: 3px; overflow-x: auto; padding-bottom: 4px; }
+  .sem-btn { min-width: 27px; padding: 3px 2px; font-size: 11px; font-weight: 700; text-align: center; border: 1px solid #94a3b8; border-radius: 4px; background: #dbeafe; color: #1e3a8a; cursor: pointer; flex-shrink: 0; position: relative; }
+  .sem-btn.varB { background: #fde68a; color: #713f12; }
+  .sem-btn.vac { background: #e2e8f0; color: #b91c1c; }
+  .sem-btn.type-btn { background: #1e293b; color: #fff; min-width: 44px; }
+  .sem-btn.choisi { outline: 2px solid #2563eb; outline-offset: 1px; }
+  .sem-btn.auj { border-color: #0f172a; border-width: 2px; }
+  .sem-btn .derog { position: absolute; top: -3px; right: -2px; width: 7px; height: 7px; border-radius: 99px; background: #e11d48; border: 1px solid #fff; }
+  #bande-info { font-size: 12px; color: #475569; padding-top: 3px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  #bande-info .btn-reset { font-size: 11.5px; padding: 2px 8px; background: #fff; color: #e11d48; border: 1px solid #fecdd3; border-radius: 6px; }
+  @media print { #bande-annee { display: none !important; } }
+  #sel-semaine { font-size: 13px; padding: 4px 4px; border: none; background: transparent; font-weight: 600; }
+  .btn-ico { border: none; background: transparent; font-size: 15px; padding: 4px 6px; border-radius: 6px; color: #475569; }
+  .btn-ico:hover { background: #e2e8f0; }
+
+  /* ---------- Impression / PDF ---------- */
+  #zone-impression { display: none; }
+  @page { size: A4 landscape; margin: 10mm; }
+  @page bilan { size: A4 portrait; margin: 10mm; }
+  @media print {
+    header, .conteneur { display: none !important; }
+    body { background: #fff; }
+    #zone-impression { display: block; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+  #zone-impression .page { page-break-after: always; }
+  #zone-impression .page:last-child { page-break-after: auto; }
+  #zone-impression h1 { font-size: 16px; text-align: center; margin-bottom: 2px; }
+  #zone-impression h2.sous-titre { font-size: 13px; text-align: center; font-weight: 400; color: #475569; margin-bottom: 8px; }
+  #zone-impression table { border-collapse: collapse; width: 100%; }
+  #zone-impression th, #zone-impression td { border: 1px solid #cbd5e1; }
+  #zone-impression th { background: #f1f5f9; font-size: 10px; padding: 3px 4px; }
+  #zone-impression .h-col { border: none; background: none; width: 38px; text-align: right; padding-right: 4px; font-size: 8.5px; color: #64748b; vertical-align: top; }
+  #zone-impression .h-col .demi { font-size: 7px; color: #cbd5e1; }
+  #zone-impression td.cr { height: 4px; padding: 0; position: relative; border-top: none; border-bottom: none; }
+  #zone-impression tr.cran-30 td.cr { border-top: 1px dotted #cbd5e1; }
+  #zone-impression tr.cran-60 td.cr { border-top: 1px solid #94a3b8; }
+  #zone-impression td.cr .etiquette { position: absolute; top: 0; left: 2px; font-size: 7.5px; font-weight: 600; white-space: nowrap; z-index: 1; }
+  #zone-impression td.mini { height: 3px; padding: 0; border-top: none; border-bottom: none; }
+  #zone-impression tr.cran-30 td.mini { border-top: 1px dotted #cbd5e1; }
+  #zone-impression tr.cran-60 td.mini { border-top: 1px solid #94a3b8; }
+  #zone-impression tr:last-child td.cr, #zone-impression tr:last-child td.mini { border-bottom: 1px solid #94a3b8; }
+  #zone-impression .legende { margin-top: 8px; font-size: 9.5px; }
+  #zone-impression .legende i { width: 9px; height: 9px; }
+  #zone-impression td.bloc-jour { font-size: 9.5px; padding: 3px 4px; vertical-align: top; line-height: 1.45; }
+  #zone-impression td.centre { font-size: 10px; padding: 3px 4px; text-align: center; }
+  #zone-impression .pied { margin-top: 6px; font-size: 8.5px; color: #94a3b8; text-align: right; }
+  #zone-impression .page-bilan { page: bilan; font-size: 9.5px; color: #1e293b; }
+  #zone-impression .page-bilan h1 { font-size: 17px; }
+  #zone-impression .page-bilan h3 { font-size: 11px; margin: 9px 0 4px; color: #334155; }
+  #zone-impression .fiche-resume { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 8px 0; }
+  #zone-impression .fiche-box { border: 1px solid #cbd5e1; border-radius: 6px; padding: 5px 6px; min-height: 38px; }
+  #zone-impression .fiche-box .lib { font-size: 7.8px; text-transform: uppercase; letter-spacing: .04em; color: #64748b; }
+  #zone-impression .fiche-box .val { margin-top: 2px; font-size: 12px; font-weight: 700; }
+  #zone-impression .fiche-note { color: #64748b; font-size: 8.5px; line-height: 1.35; margin: 3px 0 5px; }
+  #zone-impression .fiche-table th { font-size: 8.3px; padding: 2px 3px; }
+  #zone-impression .fiche-table td { font-size: 8.5px; padding: 2px 3px; vertical-align: top; line-height: 1.3; }
+  #zone-impression .fiche-table td.muted { color: #94a3b8; text-align: center; }
+  #zone-impression .fiche-solde { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-top: 7px; }
+  #recherche { font-size: 13px; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 8px; width: 170px; }
+  #res-recherche { position: fixed; top: 52px; right: 16px; z-index: 90; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.15); max-width: 380px; max-height: 60vh; overflow-y: auto; display: none; }
+  #res-recherche .res { padding: 7px 12px; font-size: 12.5px; cursor: pointer; border-bottom: 1px solid #f1f5f9; }
+  #res-recherche .res:hover { background: #eff6ff; }
+  #res-recherche .res b { color: #2563eb; }
+  #zone-impression .doc { font-size: 12px; line-height: 1.6; color: #1e293b; max-width: 660px; margin: 0 auto; }
+  #zone-impression .doc h1 { font-size: 17px; margin: 14px 0 4px; }
+  #zone-impression .doc .entete-doc { display: flex; justify-content: space-between; font-size: 11px; color: #475569; border-bottom: 2px solid #1e293b; padding-bottom: 6px; }
+  #zone-impression .doc table { margin: 8px 0; }
+  #zone-impression .doc td, #zone-impression .doc th { padding: 4px 8px; font-size: 11px; }
+</style>
+<style id="page-orient"></style>
+</head>
+<body>
+
+<header>
+  <span style="background:#7c3aed;color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;letter-spacing:.05em">RH</span>
+  <input id="titre" value="Emploi du temps AED — Vie scolaire">
+  <input id="recherche" placeholder="🔍 Rechercher (AED, absence...)" autocomplete="off">
+  <span class="statut-sauvegarde" id="statut"></span>
+  <span class="grp-semaine">
+    <select id="sel-semaine" onchange="changerSemaine(this.value)"></select>
+    <button class="btn-ico" onclick="dupliquerSemaine()" title="Dupliquer la semaine courante (semaine B, semaine d'examens...)">⧉</button>
+    <button class="btn-ico" onclick="renommerSemaine()" title="Renommer">✏️</button>
+    <button class="btn-ico" onclick="supprimerSemaine()" title="Supprimer cette semaine">🗑</button>
+  </span>
+  <button class="btn-ico" onclick="annuler()" title="Annuler (Ctrl+Z)">↶</button>
+  <button class="btn-ico" onclick="refaire()" title="Refaire (Ctrl+Y)">↷</button>
+  <button class="btn" id="btn-json" onclick="exporter()" title="Exporter la sauvegarde JSON (recommandé chaque semaine)">💾 JSON</button>
+  <button class="btn" id="btn-fichier-auto" onclick="lierFichierAuto()" title="Lier un fichier JSON : l'application y écrira automatiquement à chaque modification">🔗 Fichier auto</button>
+  <button class="btn" onclick="document.getElementById('fichier').click()">📂 Importer</button>
+  <button class="btn" onclick="exporterExcel()">📊 Excel</button>
+  <input type="file" id="fichier" accept=".json" style="display:none" onchange="importer(event)">
+  <select id="format-impression" title="Format de sortie PDF">
+    <option value="aed">PDF — Un AED par page</option>
+    <option value="general">PDF — Planning général</option>
+    <option value="superpose">PDF — Grille superposée</option>
+    <option value="jour">PDF — Affichage journalier</option>
+    <option value="bilan">PDF — Fiche bilan individuelle</option>
+    <option value="repartition">PDF — Fiche d'auto-répartition</option>
+  </select>
+  <button class="btn btn-bleu" onclick="imprimer()">🖨 Imprimer / PDF</button>
+</header>
+
+<div id="bande-annee">
+  <div id="bande-sems"></div>
+  <div id="bande-info"></div>
+</div>
+
+<div id="zone-impression"></div>
+<div id="infobulle"></div>
+
+<div id="res-recherche"></div>
+<div id="voile">
+  <div class="modal">
+    <h3 id="modal-titre">Saisie manuelle</h3>
+    <div class="champ"><label>Jour</label><select id="modal-jour"></select></div>
+    <div class="champ"><label>Poste</label><select id="modal-poste"></select></div>
+    <div class="champ"><label>Début</label><input type="time" id="modal-debut" step="300" min="07:30" max="18:30"></div>
+    <div class="champ"><label>Fin</label><input type="time" id="modal-fin" step="300" min="07:30" max="18:30"></div>
+    <div class="erreur" id="modal-erreur"></div>
+    <div class="boutons">
+      <button class="suppr" id="modal-supprimer">Supprimer</button>
+      <button class="annuler" onclick="fermerModal()">Annuler</button>
+      <button class="valider" onclick="validerModal()">Valider</button>
+    </div>
+  </div>
+</div>
+
+<div class="conteneur">
+  <aside>
+    <div class="carte">
+      <h2>Équipe AED <button class="btn-plus" onclick="ajouterAed()">＋</button></h2>
+      <div id="liste-aeds"></div>
+    </div>
+    <div class="carte">
+      <h2>Postes <button class="btn-plus" onclick="ajouterPoste()">＋</button></h2>
+      <div id="liste-postes"></div>
+      <p class="aide">Sélectionnez un poste puis cliquez-glissez sur la grille. Glissez un bloc existant pour le déplacer. La gomme efface. Double-clic sur un bloc (ou une zone vide) pour saisir les horaires au clavier.</p>
+    </div>
+    <div class="carte">
+      <h2>Alertes</h2>
+      <div id="alertes"></div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="onglets">
+      <button class="onglet" id="onglet-aed" onclick="setVue('aed')">👤 Par AED</button>
+      <button class="onglet" id="onglet-equipe" onclick="setVue('equipe')">👥 Synthèse équipe</button>
+      <button class="onglet" id="onglet-etude" onclick="setVue('etude')">📚 Vision étude</button>
+      <button class="onglet" id="onglet-absences" onclick="setVue('absences')">🗓 Absences</button>
+      <button class="onglet" id="onglet-annee" onclick="setVue('annee')">📊 Année</button>
+      <button class="onglet" id="onglet-dossiers" onclick="setVue('dossiers')">👤 Dossiers</button>
+      <button class="onglet" id="onglet-repartition" onclick="setVue('repartition')">📋 Répartition</button>
+      <button class="onglet" id="onglet-mois" onclick="setVue('mois')">📅 Mois</button>
+      <button class="onglet" id="onglet-reglages" onclick="setVue('reglages')">⚙️ Réglages</button>
+    </div>
+    <div id="contenu"></div>
+  </main>
+</div>
+
+<script>
+"use strict";
+// ---------- Constantes ----------
+const JOURS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"];
+const H_DEBUT = 7.5, H_FIN = 18.5;
+const PAS = 5; // minutes par cran
+const NB = ((H_FIN - H_DEBUT) * 60) / PAS; // nombre de crans
+const PAR_30 = 30 / PAS, PAR_H = 60 / PAS;
+const COULEURS = [
+  { fond: "#93c5fd", texte: "#1e3a8a" }, { fond: "#6ee7b7", texte: "#064e3b" },
+  { fond: "#fcd34d", texte: "#78350f" }, { fond: "#d8b4fe", texte: "#581c87" },
+  { fond: "#fda4af", texte: "#881337" }, { fond: "#67e8f9", texte: "#164e63" },
+  { fond: "#bef264", texte: "#365314" }, { fond: "#fdba74", texte: "#7c2d12" },
+];
+const CLE = "edt-aed-rh-v1"; // clé distincte : la branche RH n'écrase pas les données de l'outil planning
+
+// Périodes Pronote et effectifs élèves présents (max observé par période, modifiable dans l'onglet Vision étude)
+const PERIODES_ETUDE = [
+  ["08:30", "09:25"], ["09:25", "10:40"], ["10:40", "11:35"], ["11:35", "12:30"],
+  ["12:30", "13:30"], ["13:30", "14:25"], ["14:25", "15:35"], ["15:35", "16:30"],
+];
+let compteurId = 100;
+const genId = (p) => p + (++compteurId) + "_" + (Date.now() % 100000);
+
+// Vacances scolaires 2026-2027 (arrêté du 22/10/2025) — du premier au dernier jour sans cours
+function vacancesZone(zone) {
+  const hiver = { A: ["2027-02-13", "2027-02-28"], B: ["2027-02-20", "2027-03-07"], C: ["2027-02-06", "2027-02-21"] };
+  const printemps = { A: ["2027-04-10", "2027-04-25"], B: ["2027-04-17", "2027-05-02"], C: ["2027-04-03", "2027-04-18"] };
+  return [
+    { nom: "Toussaint", du: "2026-10-17", au: "2026-11-01" },
+    { nom: "Noël", du: "2026-12-19", au: "2027-01-03" },
+    { nom: "Hiver", du: hiver[zone][0], au: hiver[zone][1] },
+    { nom: "Printemps", du: printemps[zone][0], au: printemps[zone][1] },
+    { nom: "Pont de l'Ascension", du: "2027-05-06", au: "2027-05-09" },
+  ].map((v) => ({ id: genId("v"), ...v }));
+}
+const MOTIFS_ABSENCE = ["Maladie", "Formation", "Grève", "Garde d'enfant", "Convenance personnelle", "Autre"];
+// Une absence « à rattraper » crée une dette d'heures ; maladie, formation, grève, garde d'enfant : non
+const RATTRAPAGE_DEFAUT = { "Maladie": false, "Formation": false, "Grève": false, "Garde d'enfant": false, "Convenance personnelle": true, "Autre": true };
+const MOTIFS_HEURES = ["Journée administrative", "Heures supplémentaires", "Remplacement", "Réunion", "Récupération", "Autre"];
+const STATUTS_ABSENCE = ["Déclarée", "Justificatif reçu", "Validée", "Transmise"];
+const COULEUR_STATUT = { "Déclarée": "#e11d48", "Justificatif reçu": "#d97706", "Validée": "#2563eb", "Transmise": "#059669" };
+
+const EFFECTIFS_DEFAUT = {
+  Lundi:    [48, 67, 35, 134, 398, 64, 84, 25],
+  Mardi:    [86, 67, 13, 173, 398, 45, 71, 112],
+  Mercredi: [71, 36, 4, 133, 398, 398, 398, 398],
+  Jeudi:    [81, 78, 59, 151, 398, 18, 64, 61],
+  Vendredi: [59, 69, "", 128, 398, 67, 71, 132],
+};
+
+// ---------- État ----------
+let etat = {
+  version: 2,
+  titre: "Emploi du temps AED — Vie scolaire",
+  aeds: [
+    { id: "a1", nom: "AED 1", quotite: 41 },
+    { id: "a2", nom: "AED 2", quotite: 41 },
+    { id: "a3", nom: "AED 3", quotite: 20.5 },
+  ],
+  postes: [
+    { id: "p1", nom: "Bureau vie scolaire", couleur: 0 },
+    { id: "p2", nom: "Portail / Entrées", couleur: 1 },
+    { id: "p3", nom: "Étude / Permanence", couleur: 2 },
+    { id: "p4", nom: "Self", couleur: 3 },
+    { id: "p5", nom: "Cour / Couloirs", couleur: 4 },
+    { id: "p6", nom: "Administratif", couleur: 5 },
+  ],
+  planning: {}, // planning[aedId][jour][creneau] = posteId
+};
+let aedActif = "a1", posteActif = "p1", gomme = false, outilIndispo = false, vue = "aed";
+let semaineReelle = null; // lundi (ISO) de la semaine réelle affichée, ou null = mode semaine type
+let peinture = false;
+let srcCopie = "Lundi", dstCopie = "Mardi";
+let minuteurStatut = null;
+let fichierAutoHandle = null;
+let fichierAutoPret = false;
+let fichierAutoTimer = null;
+let fichierAutoEcriture = false;
+let fichierAutoAttente = false;
+
+// ---------- Persistance ----------
+// Migration des anciens plannings (crans de 30 min → 5 min)
+function migrer(d) {
+  if ((d.version || 1) >= 2) return d;
+  const np = {};
+  for (const [aid, jours] of Object.entries(d.planning || {})) {
+    np[aid] = {};
+    for (const [j, crs] of Object.entries(jours)) {
+      np[aid][j] = {};
+      for (const [cr, pid] of Object.entries(crs)) {
+        const base = parseInt(cr, 10) * (30 / PAS);
+        for (let k = 0; k < 30 / PAS; k++) np[aid][j][base + k] = pid;
+      }
+    }
+  }
+  d.planning = np;
+  d.version = 2;
+  return d;
+}
+
+// Complète l'état avec les champs Vision étude s'ils manquent
+function normaliser() {
+  if (!etat.effectifs) etat.effectifs = JSON.parse(JSON.stringify(EFFECTIFS_DEFAUT));
+  if (!etat.capaPrincipale) etat.capaPrincipale = 50; // salle d'étude principale
+  if (!etat.capaAnnexe) etat.capaAnnexe = 20; // salles annexes
+  if (!etat.absences) etat.absences = {}; // absences[aedId][jour] = 1
+  if (!etat.indispos) etat.indispos = {}; // indispos[aedId][jour][cr] = 1
+  if (!etat.besoins) etat.besoins = []; // besoins minimum par poste
+  if (!etat.semainesTravaillees) etat.semainesTravaillees = 41;
+  if (!etat.reglages) etat.reglages = { debutAnnee: "2026-09-01", finAnnee: "2027-07-02", zone: "A", vacances: vacancesZone("A") };
+  if (!etat.absencesAn) etat.absencesAn = []; // registre daté : {id, aedId, du, au, motif, note, rattraper}
+  for (const abs of etat.absencesAn)
+    if (abs.rattraper === undefined) abs.rattraper = RATTRAPAGE_DEFAUT[abs.motif] ?? true;
+  if (!etat.heuresJournal) etat.heuresJournal = []; // écritures ± : {id, aedId, date, heures, motif, note}
+  // Dossier RH par AED (pas de RIB/INE/données médicales : minimisation volontaire)
+  for (const a of etat.aeds) {
+    if (!a.rh) a.rh = { tel: "", email: "", urgence: "", contrats: [], obs: [] };
+    if (!a.rh.entretiens) a.rh.entretiens = []; // {id, date, realise, cr}
+    if (!a.rh.formations) a.rh.formations = []; // {id, nom, date, validite, note}
+  }
+  for (const abs of etat.absencesAn)
+    if (!abs.statut) abs.statut = "Déclarée";
+  if (!etat.audit) etat.audit = []; // journal d'audit local {t, msg}
+  if (!etat.derogations) etat.derogations = {}; // plannings spécifiques par semaine réelle : {lundiIso: planning}
+  // Auto-répartition (la veille pour le lendemain) : études + créneau midi
+  if (!etat.postes.some((p) => /midi/i.test(p.nom)))
+    etat.postes.push({ id: genId("p"), nom: "Midi — à répartir", couleur: etat.postes.length % COULEURS.length });
+  if (!etat.posteMidi || !etat.postes.find((p) => p.id === etat.posteMidi))
+    etat.posteMidi = etat.postes.find((p) => /midi/i.test(p.nom))?.id || etat.postes[0]?.id;
+  if (!etat.sousPostesMidi) etat.sousPostesMidi = ["Self", "Cour", "Portail / Grille"];
+  if (!etat.sousPostesEtude) etat.sousPostesEtude = ["Salle principale", "Salle annexe 1", "Salle annexe 2"];
+  if (!etat.reglages.midiDebut) etat.reglages.midiDebut = "11:35";
+  if (!etat.reglages.midiFin) etat.reglages.midiFin = "13:30";
+  if (!etat.repartitions) etat.repartitions = {}; // {dateIso: {midi: {aedId: sousPoste}, etude: {...}}}
+  for (const aed of etat.aeds) {
+    if (aed.contratType === undefined) aed.contratType = "CDD";
+    if (aed.contratDebut === undefined) aed.contratDebut = "";
+    if (aed.contratFin === undefined) aed.contratFin = "";
+    if (aed.statutDepuis === undefined) aed.statutDepuis = aed.contratDebut || "";
+    if (aed.telephone === undefined) aed.telephone = "";
+    if (aed.email === undefined) aed.email = "";
+  }
+  // Variantes de semaine (A/B...) : le planning actif est etat.planning,
+  // lié par référence à l'entrée active de etat.semaines
+  if (!etat.semaines || !etat.semaines.length) {
+    etat.semaines = [{ id: "s1", nom: "Semaine A", planning: etat.planning }];
+    etat.semaineActive = "s1";
+  } else {
+    const act = etat.semaines.find((s) => s.id === etat.semaineActive) || etat.semaines[0];
+    etat.semaineActive = act.id;
+    act.planning = etat.planning;
+  }
+  normaliserAlternance();
+  if (!etat.posteEtude || !etat.postes.find((p) => p.id === etat.posteEtude)) {
+    const p = etat.postes.find((p) => /étude|etude|perman/i.test(p.nom));
+    etat.posteEtude = (p || etat.postes[0])?.id;
+  }
+}
+
+function normaliserAlternance() {
+  if (!etat.reglages) return;
+  if (!etat.reglages.alternance) etat.reglages.alternance = {};
+  const alt = etat.reglages.alternance;
+  const ids = etat.semaines.map((s) => s.id);
+  if (!["active", "paireImpaire"].includes(alt.mode)) alt.mode = "active";
+  if (!ids.includes(alt.semainePaire)) alt.semainePaire = ids[0] || "";
+  if (!ids.includes(alt.semaineImpaire)) alt.semaineImpaire = ids[1] || ids[0] || "";
+}
+
+try {
+  const brut = localStorage.getItem(CLE);
+  if (brut) {
+    const d = JSON.parse(brut);
+    if (d.aeds && d.postes && d.planning) { etat = migrer(d); aedActif = d.aeds[0]?.id; posteActif = d.postes[0]?.id; }
+  }
+} catch (e) {}
+normaliser();
+
+function sauver() {
+  try {
+    localStorage.setItem(CLE, JSON.stringify(etat));
+    const s = document.getElementById("statut");
+    s.textContent = "✓ enregistré";
+    clearTimeout(minuteurStatut);
+    minuteurStatut = setTimeout(() => (s.textContent = ""), 1500);
+    programmerSauvegardeFichier();
+  } catch (e) {}
+}
+
+// Sauvegarde automatique sur fichier (API disponible dans Chrome/Edge).
+// Le navigateur demande l'autorisation une fois, puis l'écriture est relancée à chaque modification.
+function ouvrirDbFichierAuto() {
+  return new Promise((ok, ko) => {
+    if (!("indexedDB" in window)) { ko(); return; }
+    const req = indexedDB.open("edt-aed-fichier-auto", 1);
+    req.onupgradeneeded = () => req.result.createObjectStore("kv");
+    req.onsuccess = () => ok(req.result);
+    req.onerror = () => ko(req.error);
+  });
+}
+async function lireHandleFichierAuto() {
+  const db = await ouvrirDbFichierAuto();
+  return new Promise((ok) => {
+    const req = db.transaction("kv", "readonly").objectStore("kv").get("handle");
+    req.onsuccess = () => ok(req.result || null);
+    req.onerror = () => ok(null);
+  });
+}
+async function enregistrerHandleFichierAuto(handle) {
+  const db = await ouvrirDbFichierAuto();
+  return new Promise((ok, ko) => {
+    const req = db.transaction("kv", "readwrite").objectStore("kv").put(handle, "handle");
+    req.onsuccess = ok;
+    req.onerror = () => ko(req.error);
+  });
+}
+async function verifierPermissionFichier(handle, demander) {
+  const opts = { mode: "readwrite" };
+  if ((await handle.queryPermission(opts)) === "granted") return true;
+  return demander && (await handle.requestPermission(opts)) === "granted";
+}
+async function initialiserSauvegardeFichier() {
+  if (!("showSaveFilePicker" in window)) { majBoutonFichierAuto(); return; }
+  try {
+    const handle = await lireHandleFichierAuto();
+    if (!handle) { majBoutonFichierAuto(); return; }
+    fichierAutoHandle = handle;
+    fichierAutoPret = await verifierPermissionFichier(handle, false);
+    majBoutonFichierAuto();
+  } catch (e) { majBoutonFichierAuto(); }
+}
+function majBoutonFichierAuto() {
+  const btn = document.getElementById("btn-fichier-auto");
+  if (!btn) return;
+  if (!("showSaveFilePicker" in window)) {
+    btn.textContent = "Fichier auto indisponible";
+    btn.title = "Cette fonction nécessite Chrome ou Edge. Utilisez l'export JSON manuel.";
+    btn.disabled = true;
+    btn.style.opacity = ".55";
+  } else if (fichierAutoPret) {
+    btn.textContent = "✓ Fichier lié";
+    btn.style.background = "#059669";
+    btn.title = "Sauvegarde automatique active vers le fichier JSON choisi";
+  } else if (fichierAutoHandle) {
+    btn.textContent = "🔓 Réautoriser fichier";
+    btn.style.background = "#b45309";
+  } else {
+    btn.textContent = "🔗 Fichier auto";
+    btn.style.background = "";
+  }
+}
+async function lierFichierAuto() {
+  if (!("showSaveFilePicker" in window)) {
+    alert("La sauvegarde automatique sur fichier nécessite Chrome ou Edge. L'export JSON manuel reste disponible.");
+    return;
+  }
+  try {
+    fichierAutoHandle = await showSaveFilePicker({
+      suggestedName: "edt-aed-sauvegarde.json",
+      types: [{ description: "Sauvegarde EDT AED", accept: { "application/json": [".json"] } }],
+    });
+    fichierAutoPret = await verifierPermissionFichier(fichierAutoHandle, true);
+    if (!fichierAutoPret) return;
+    await enregistrerHandleFichierAuto(fichierAutoHandle);
+    majBoutonFichierAuto();
+    await ecrireSauvegardeFichier(true);
+  } catch (e) {
+    if (e.name !== "AbortError") alert("Impossible de lier le fichier de sauvegarde.");
+  }
+}
+function programmerSauvegardeFichier() {
+  if (!fichierAutoPret || !fichierAutoHandle) return;
+  clearTimeout(fichierAutoTimer);
+  fichierAutoTimer = setTimeout(() => ecrireSauvegardeFichier(false), 700);
+}
+async function ecrireSauvegardeFichier(force) {
+  if (!fichierAutoHandle || (!fichierAutoPret && !force)) return;
+  if (fichierAutoEcriture) { fichierAutoAttente = true; return; }
+  fichierAutoEcriture = true;
+  try {
+    const writable = await fichierAutoHandle.createWritable();
+    await writable.write(JSON.stringify(etat, null, 2));
+    await writable.close();
+    const s = document.getElementById("statut");
+    s.textContent = "✓ fichier sauvegardé";
+    clearTimeout(minuteurStatut);
+    minuteurStatut = setTimeout(() => (s.textContent = ""), 1800);
+  } catch (e) {
+    fichierAutoPret = false;
+    majBoutonFichierAuto();
+    const s = document.getElementById("statut");
+    s.textContent = "⚠ fichier non autorisé";
+  } finally {
+    fichierAutoEcriture = false;
+    if (fichierAutoAttente) {
+      fichierAutoAttente = false;
+      programmerSauvegardeFichier();
+    }
+  }
+}
+
+// ---------- Utilitaires ----------
+const labelHeure = (i) => { const m = H_DEBUT * 60 + i * PAS; return Math.floor(m / 60) + "h" + String(m % 60).padStart(2, "0"); };
+const fmt = (n) => Number.isInteger(n) ? String(n) : n.toFixed(1).replace(".", ",");
+const fmtH = (h) => { const neg = h < 0; const m = Math.round(Math.abs(h) * 60); return (neg ? "−" : "") + Math.floor(m / 60) + "h" + String(m % 60).padStart(2, "0"); };
+const classeCran = (cr) => cr % PAR_H === 0 ? "cran-60" : cr % PAR_30 === 0 ? "cran-30" : "";
+const labelColonne = (cr) => cr % PAR_H === 0 ? labelHeure(cr) : cr % PAR_30 === 0 ? `<span class="demi">${labelHeure(cr)}</span>` : "";
+const posteParId = (id) => etat.postes.find((p) => p.id === id);
+const ech = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+function contactCourt(a) {
+  const parts = [];
+  if (a.telephone) parts.push("Tél. " + ech(a.telephone));
+  if (a.email) parts.push(ech(a.email));
+  return parts.length ? `<span class="mini-contact">${parts.join(" · ")}</span>` : "";
+}
+
+const estAbsent = (aedId, jour) => !!(etat.absences[aedId] || {})[jour];
+const estIndispo = (aedId, jour, cr) => !!((etat.indispos[aedId] || {})[jour] || {})[cr];
+const absenceDateAed = (aedId, iso) => etat.absencesAn.some((abs) => abs.aedId === aedId && abs.du <= iso && iso <= abs.au);
+const estAbsentAlaDate = (aedId, jour, iso) => estAbsent(aedId, jour) || absenceDateAed(aedId, iso);
+function heuresJour(aedId, jour) {
+  if (estAbsent(aedId, jour)) return 0;
+  return Object.keys((etat.planning[aedId] || {})[jour] || {}).length * PAS / 60;
+}
+function heuresSemaine(aedId) { return JOURS.reduce((t, j) => t + heuresJour(aedId, j), 0); }
+
+function calculerAlertes() {
+  const res = [];
+  const rappelEntretien = alerteEntretienAnnuel();
+  if (rappelEntretien) res.push(rappelEntretien);
+  for (const aed of etat.aeds) {
+    const total = heuresSemaine(aed.id);
+    if (total > aed.quotite) res.push([aed.nom, "dépassement : " + fmtH(total) + " / " + fmtH(aed.quotite)]);
+    if (aed.contratDebut && aed.contratFin && aed.contratFin < aed.contratDebut)
+      res.push([aed.nom, "contrat incohérent : fin avant le début"]);
+    if ((aed.contratType || "CDD") !== "CDI" && aed.contratDebut && !aed.contratFin)
+      res.push([aed.nom, "CDD sans date de fin renseignée"]);
+    if ((aed.contratType || "CDD") !== "CDI" && aed.contratFin) {
+      const reste = joursAvant(aed.contratFin);
+      if (reste < 0) res.push([aed.nom, "contrat terminé depuis le " + frDate(aed.contratFin)]);
+      else if (reste <= 60) res.push([aed.nom, "fin de contrat le " + frDate(aed.contratFin) + " (J-" + reste + ")"]);
+    }
+    const limite = sixAnsApres(debutStatut(aed));
+    if (limite) {
+      const resteStatut = joursAvant(limite);
+      if (resteStatut < 0) res.push([aed.nom, "limite des 6 ans dépassée depuis le " + frDate(limite)]);
+      else if (resteStatut <= 180) res.push([aed.nom, "limite des 6 ans le " + frDate(limite) + " (J-" + resteStatut + ")"]);
+    }
+    for (const jour of JOURS) {
+      let run = 0, maxRun = 0;
+      for (let i = 0; i < NB; i++) {
+        if ((etat.planning[aed.id] || {})[jour]?.[i]) { run++; maxRun = Math.max(maxRun, run); } else run = 0;
+      }
+      if (maxRun > 6 * PAR_H) res.push([aed.nom, jour + " : plus de 6h consécutives sans pause"]);
+      if (heuresJour(aed.id, jour) > 10) res.push([aed.nom, jour + " : plus de 10h dans la journée"]);
+    }
+  }
+  return res;
+}
+function alerteEntretienAnnuel(date = new Date()) {
+  const iso = isoLocal(date);
+  if (date.getMonth() === 2 && dansAnnee(iso))
+    return ["Équipe", "mars : entretien annuel AED à planifier / réaliser"];
+  return null;
+}
+
+// ---------- Historique (annuler / refaire) ----------
+let pileAnnuler = [], pileRefaire = [];
+const instantane = () => JSON.stringify({ p: etat.planning, i: etat.indispos });
+function pousserHistorique(snap) {
+  pileAnnuler.push(snap || instantane());
+  if (pileAnnuler.length > 60) pileAnnuler.shift();
+  pileRefaire = [];
+}
+function lierPlanning() {
+  if (semaineReelle) { etat.derogations[semaineReelle] = etat.planning; return; }
+  const act = etat.semaines.find((s) => s.id === etat.semaineActive);
+  if (act) act.planning = etat.planning;
+}
+// En mode semaine réelle : crée la copie dérogatoire à la première modification
+function assurerDerogation() {
+  if (!semaineReelle || etat.derogations[semaineReelle]) {
+    if (semaineReelle) etat.planning = etat.derogations[semaineReelle];
+    return;
+  }
+  etat.derogations[semaineReelle] = JSON.parse(JSON.stringify(etat.planning || {}));
+  etat.planning = etat.derogations[semaineReelle];
+  journaliser(`Semaine du ${frDate(semaineReelle)} : planning spécifique créé`);
+}
+function restaurer(snapJson) {
+  const s = JSON.parse(snapJson);
+  etat.planning = s.p; etat.indispos = s.i;
+  lierPlanning(); sauver(); rendre();
+}
+function annuler() {
+  if (!pileAnnuler.length) return;
+  pileRefaire.push(instantane());
+  restaurer(pileAnnuler.pop());
+}
+function refaire() {
+  if (!pileRefaire.length) return;
+  pileAnnuler.push(instantane());
+  restaurer(pileRefaire.pop());
+}
+
+// ---------- Actions ----------
+function poserBrut(aedId, jour, cr) {
+  if (gomme) {
+    if (etat.planning[aedId]?.[jour]) delete etat.planning[aedId][jour][cr];
+    if (etat.indispos[aedId]?.[jour]) delete etat.indispos[aedId][jour][cr];
+  } else if (outilIndispo) {
+    if (!etat.indispos[aedId]) etat.indispos[aedId] = {};
+    if (!etat.indispos[aedId][jour]) etat.indispos[aedId][jour] = {};
+    etat.indispos[aedId][jour][cr] = 1;
+    if (etat.planning[aedId]?.[jour]) delete etat.planning[aedId][jour][cr];
+  } else {
+    if (estIndispo(aedId, jour, cr)) return; // pas de poste sur une indisponibilité
+    if (!etat.planning[aedId]) etat.planning[aedId] = {};
+    if (!etat.planning[aedId][jour]) etat.planning[aedId][jour] = {};
+    etat.planning[aedId][jour][cr] = posteActif;
+  }
+}
+function poser(aedId, jour, cr) {
+  assurerDerogation();
+  poserBrut(aedId, jour, cr);
+  sauver(); rendre();
+}
+// Remplit tous les crans entre a et b inclus (évite les trous quand la souris va vite)
+function poserPlage(aedId, jour, a, b) {
+  assurerDerogation();
+  for (let cr = Math.min(a, b); cr <= Math.max(a, b); cr++) poserBrut(aedId, jour, cr);
+  sauver(); rendre();
+}
+
+function ajouterAed() {
+  const a = {
+    id: genId("a"),
+    nom: "AED " + (etat.aeds.length + 1),
+    quotite: 41,
+    contratType: "CDD",
+    contratDebut: etat.reglages.debutAnnee,
+    contratFin: etat.reglages.finAnnee,
+    statutDepuis: etat.reglages.debutAnnee,
+    telephone: "",
+    email: "",
+  };
+  etat.aeds.push(a); aedActif = a.id; vue = "aed"; sauver(); rendre();
+}
+function supprimerAed(id) {
+  if (!confirm("Supprimer cet AED et son planning ?")) return;
+  etat.aeds = etat.aeds.filter((a) => a.id !== id);
+  delete etat.planning[id];
+  if (aedActif === id) aedActif = etat.aeds[0]?.id;
+  sauver(); rendre();
+}
+function majAed(id, champ, val) {
+  const a = etat.aeds.find((x) => x.id === id);
+  if (a) {
+    a[champ] = champ === "quotite" ? (parseFloat(val) || 0) : val;
+    if (champ === "contratType" && val === "CDI") a.contratFin = "";
+  }
+  sauver(); rendre();
+}
+function choisirAed(id) { aedActif = id; vue = "aed"; rendre(); }
+
+function ajouterPoste() {
+  const p = { id: genId("p"), nom: "Nouveau poste", couleur: etat.postes.length % COULEURS.length };
+  etat.postes.push(p); posteActif = p.id; gomme = false; sauver(); rendre();
+}
+function supprimerPoste(id) {
+  if (!confirm("Supprimer ce poste ? Les créneaux associés seront effacés.")) return;
+  etat.postes = etat.postes.filter((p) => p.id !== id);
+  for (const jours of Object.values(etat.planning))
+    for (const crs of Object.values(jours))
+      for (const [cr, pid] of Object.entries(crs)) if (pid === id) delete crs[cr];
+  if (posteActif === id) posteActif = etat.postes[0]?.id;
+  sauver(); rendre();
+}
+function majPoste(id, nom) {
+  const p = posteParId(id); if (p) p.nom = nom; sauver(); rendre();
+}
+function choisirPoste(id) { posteActif = id; gomme = false; outilIndispo = false; rendre(); }
+function choisirGomme() { gomme = true; outilIndispo = false; rendre(); }
+function choisirIndispo() { outilIndispo = true; gomme = false; rendre(); }
+
+function copierJour() {
+  if (srcCopie === dstCopie) return;
+  pousserHistorique();
+  assurerDerogation();
+  if (!etat.planning[aedActif]) etat.planning[aedActif] = {};
+  const cible = {};
+  for (const [cr, pid] of Object.entries(etat.planning[aedActif][srcCopie] || {}))
+    if (!estIndispo(aedActif, dstCopie, cr)) cible[cr] = pid;
+  etat.planning[aedActif][dstCopie] = cible;
+  sauver(); rendre();
+}
+
+// ---------- Semaines A / B ----------
+const semaineActive = () => etat.semaines.find((s) => s.id === etat.semaineActive);
+function changerSemaine(id) {
+  const cible = etat.semaines.find((s) => s.id === id);
+  if (!cible) return;
+  semaineReelle = null; // le sélecteur de semaine type ramène au mode type
+  etat.planning = cible.planning || (cible.planning = {});
+  etat.semaineActive = id;
+  normaliserAlternance();
+  pileAnnuler = []; pileRefaire = [];
+  sauver(); rendre();
+}
+
+// ---------- Navigation dans les semaines réelles de l'année (bandeau façon Pronote) ----------
+function listeSemainesAnnee() {
+  const { debutAnnee, finAnnee } = etat.reglages;
+  const res = [];
+  let lundi = lundiDeSemaine(debutAnnee);
+  let garde = 0;
+  while (lundi <= finAnnee && garde++ < 60) {
+    let joursCours = 0;
+    const d = new Date(lundi + "T12:00:00");
+    for (let k = 0; k < 5; k++) {
+      const iso = isoLocal(d);
+      if (dansAnnee(iso) && !estFerie(iso) && !estVacancesIso(iso)) joursCours++;
+      d.setDate(d.getDate() + 1);
+    }
+    res.push({ lundi, num: numeroSemaineIso(lundi), vacances: joursCours === 0, variante: nomSemainePourDate(lundi), derogee: !!etat.derogations[lundi] });
+    const suivant = new Date(lundi + "T12:00:00");
+    suivant.setDate(suivant.getDate() + 7);
+    lundi = isoLocal(suivant);
+  }
+  return res;
+}
+function choisirSemaineReelle(lundi) {
+  semaineReelle = lundi;
+  etat.planning = etat.derogations[lundi] || semainePourDate(lundi)?.planning || {};
+  pileAnnuler = []; pileRefaire = [];
+  rendre();
+}
+function modeType() {
+  semaineReelle = null;
+  etat.planning = semaineActive()?.planning || {};
+  pileAnnuler = []; pileRefaire = [];
+  rendre();
+}
+function reinitialiserSemaine() {
+  if (!semaineReelle || !etat.derogations[semaineReelle]) return;
+  if (!confirm(`Supprimer les modifications de la semaine du ${frDate(semaineReelle)} et revenir à la semaine type ?`)) return;
+  delete etat.derogations[semaineReelle];
+  journaliser(`Semaine du ${frDate(semaineReelle)} réinitialisée sur la semaine type`);
+  etat.planning = semainePourDate(semaineReelle)?.planning || {};
+  sauver(); rendre();
+}
+function rendreBande() {
+  const sems = listeSemainesAnnee();
+  const lundiAuj = lundiDeSemaine(aujourdhuiIso());
+  document.getElementById("bande-sems").innerHTML =
+    `<button class="sem-btn type-btn${semaineReelle === null ? " choisi" : ""}" onclick="modeType()" title="Éditer les semaines types (A/B)">Type</button>` +
+    sems.map((s) => {
+      const vendredi = new Date(s.lundi + "T12:00:00"); vendredi.setDate(vendredi.getDate() + 4);
+      const titre = `Semaine ${s.num} · du ${frDate(s.lundi)} au ${frDate(isoLocal(vendredi))}${s.vacances ? " · vacances" : " · base " + s.variante}${s.derogee ? " · modifiée" : ""}`;
+      const classes = ["sem-btn"];
+      if (s.vacances) classes.push("vac");
+      else if (/^b/i.test((s.variante || "").replace(/semaine/i, "").trim())) classes.push("varB");
+      if (semaineReelle === s.lundi) classes.push("choisi");
+      if (s.lundi === lundiAuj) classes.push("auj");
+      return `<button class="${classes.join(" ")}" onclick="choisirSemaineReelle('${s.lundi}')" title="${ech(titre)}">${s.vacances ? "F" : s.num}${s.derogee ? '<span class="derog"></span>' : ""}</button>`;
+    }).join("");
+  const info = document.getElementById("bande-info");
+  if (semaineReelle === null) {
+    info.innerHTML = `Mode <b>semaine type</b> : vous éditez le modèle « ${ech(semaineActive()?.nom || "")} ». Cliquez une semaine du bandeau pour voir ou modifier une semaine précise de l'année (● rouge = semaine modifiée).`;
+  } else {
+    const vendredi = new Date(semaineReelle + "T12:00:00"); vendredi.setDate(vendredi.getDate() + 4);
+    const derogee = !!etat.derogations[semaineReelle];
+    info.innerHTML = `Semaine du <b>${frDate(semaineReelle)}</b> au <b>${frDate(isoLocal(vendredi))}</b> · base : ${ech(nomSemainePourDate(semaineReelle))}
+      ${derogee ? `· <b style="color:#e11d48">modifiée</b> <button class="btn-reset" onclick="reinitialiserSemaine()">Revenir à la semaine type</button>`
+        : `· conforme à la semaine type — toute modification créera une version spécifique de cette semaine`}`;
+  }
+}
+// ---------- Auto-répartition études / midi (la veille pour le lendemain) ----------
+const estAbsenteDate = (aedId, iso) =>
+  etat.absencesAn.some((a) => a.aedId === aedId && a.du <= iso && iso <= a.au);
+
+function datesSemaineAffichee() {
+  const lundi = semaineReelle || lundiDeSemaine(aujourdhuiIso());
+  const res = [];
+  const d = new Date(lundi + "T12:00:00");
+  for (let k = 0; k < 5; k++) { res.push(isoLocal(d)); d.setDate(d.getDate() + 1); }
+  return res;
+}
+// AED postés sur un poste donné entre deux crans, pour une date réelle
+function candidatsBande(iso, posteId, crA, crB) {
+  const plan = planningPourDate(iso);
+  const jourNom = JOURS[(new Date(iso + "T12:00:00").getDay() + 6) % 7];
+  return etat.aeds.filter((a) => {
+    if (estAbsenteDate(a.id, iso)) return false;
+    const jour = (plan[a.id] || {})[jourNom] || {};
+    for (let cr = crA; cr < crB; cr++) if (jour[cr] === posteId) return true;
+    return false;
+  });
+}
+function majRepartition(iso, bande, aedId, val) {
+  if (!etat.repartitions[iso]) etat.repartitions[iso] = {};
+  if (!etat.repartitions[iso][bande]) etat.repartitions[iso][bande] = {};
+  if (val) etat.repartitions[iso][bande][aedId] = val;
+  else delete etat.repartitions[iso][bande][aedId];
+  sauver(); rendre();
+}
+function majSousPostes(champ, val) {
+  etat[champ] = val.split(",").map((s) => s.trim()).filter(Boolean);
+  if (!etat[champ].length) etat[champ] = ["Self"];
+  sauver(); rendre();
+}
+function majPosteMidi(id) { etat.posteMidi = id; sauver(); rendre(); }
+function majMidiHoraire(champ, val) { if (val) { etat.reglages[champ] = val; sauver(); rendre(); } }
+
+function blocsRepartition(iso) {
+  const crA = heureVersCr(etat.reglages.midiDebut), crB = heureVersCr(etat.reglages.midiFin);
+  return [
+    { bande: "etude", titre: "Études", sousPostes: etat.sousPostesEtude, candidats: candidatsBande(iso, etat.posteEtude, 0, NB) },
+    { bande: "midi", titre: `Midi ${etat.reglages.midiDebut.replace(":", "h")}–${etat.reglages.midiFin.replace(":", "h")}`, sousPostes: etat.sousPostesMidi, candidats: candidatsBande(iso, etat.posteMidi, crA, crB) },
+  ];
+}
+
+function htmlRepartition() {
+  const dates = datesSemaineAffichee();
+  const enTete = `<div class="carte" style="margin-bottom:14px">
+    <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-bottom:6px">
+      <h3 style="font-size:15px">Auto-répartition — semaine du ${frDate(dates[0])}</h3>
+      <label style="font-size:12.5px;color:#475569">Poste midi :
+        <select onchange="majPosteMidi(this.value)" style="font-size:12.5px;background:#f1f5f9;border:none;border-radius:5px;padding:3px 5px">
+          ${etat.postes.map((p) => `<option value="${p.id}"${p.id === etat.posteMidi ? " selected" : ""}>${ech(p.nom)}</option>`).join("")}
+        </select>
+      </label>
+      <label style="font-size:12.5px;color:#475569">De <input type="time" step="300" value="${etat.reglages.midiDebut}" onchange="majMidiHoraire('midiDebut',this.value)" style="font-size:12.5px">
+        à <input type="time" step="300" value="${etat.reglages.midiFin}" onchange="majMidiHoraire('midiFin',this.value)" style="font-size:12.5px"></label>
+      <button class="btn btn-bleu" style="margin-left:auto" onclick="imprimerRepartition()" title="Grille d'équipe du prochain jour de cours + tableaux de répartition à compléter">🖨 Fiche du prochain jour de cours</button>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:14px">
+      <label style="font-size:12.5px;color:#475569;flex:1;min-width:260px">Sous-postes du midi (séparés par des virgules)<br>
+        <input value="${ech(etat.sousPostesMidi.join(", "))}" onchange="majSousPostes('sousPostesMidi',this.value)" style="width:100%;font-size:12.5px;border:1px solid #cbd5e1;border-radius:6px;padding:4px 6px"></label>
+      <label style="font-size:12.5px;color:#475569;flex:1;min-width:260px">Salles d'étude<br>
+        <input value="${ech(etat.sousPostesEtude.join(", "))}" onchange="majSousPostes('sousPostesEtude',this.value)" style="width:100%;font-size:12.5px;border:1px solid #cbd5e1;border-radius:6px;padding:4px 6px"></label>
+    </div>
+    <p class="aide" style="margin-top:6px">Principe : le CPE poste les AED sur les postes « ${ech(posteParId(etat.posteEtude)?.nom || "étude")} » et « ${ech(posteParId(etat.posteMidi)?.nom || "midi")} » dans la grille ;
+    la veille pour le lendemain, l'équipe se répartit ici (ou sur la fiche imprimée : format « Fiche d'auto-répartition » du menu Imprimer).</p>
+  </div>`;
+
+  const jours = dates.map((iso, k) => {
+    const horsCours = !dansAnnee(iso) || estFerie(iso) || estVacancesIso(iso);
+    let contenu;
+    if (horsCours) contenu = `<p class="aide">Pas de cours (férié ou vacances).</p>`;
+    else contenu = blocsRepartition(iso).map(({ bande, titre, sousPostes, candidats }) => {
+      const rep = (etat.repartitions[iso] || {})[bande] || {};
+      const compte = {};
+      for (const sp of Object.values(rep)) compte[sp] = (compte[sp] || 0) + 1;
+      const badges = sousPostes.map((sp) =>
+        `<span style="font-size:10.5px;padding:1px 6px;border-radius:4px;background:${compte[sp] ? "#dcfce7" : "#fee2e2"};color:${compte[sp] ? "#166534" : "#b91c1c"}">${ech(sp)} : ${compte[sp] || 0}</span>`).join(" ");
+      const lignes = candidats.length ? candidats.map((a) =>
+        `<div style="display:flex;align-items:center;gap:6px;padding:2px 0">
+          <span style="flex:1;font-size:12.5px;font-weight:500">${ech(a.nom)}</span>
+          <select onchange="majRepartition('${iso}','${bande}','${a.id}',this.value)" style="font-size:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:5px;padding:2px 3px">
+            <option value="">—</option>
+            ${sousPostes.map((sp) => `<option${rep[a.id] === sp ? " selected" : ""}>${ech(sp)}</option>`).join("")}
+          </select>
+        </div>`).join("") : `<p class="aide" style="margin:2px 0">Aucun AED posté.</p>`;
+      return `<div style="margin-bottom:10px">
+        <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:2px">${ech(titre)} ${badges}</div>
+        ${lignes}
+      </div>`;
+    }).join("");
+    return `<div class="carte" style="flex:1;min-width:230px">
+      <h3 style="font-size:13.5px;margin-bottom:8px">${JOURS[k]} <span style="font-weight:400;color:#94a3b8">${frDate(iso)}</span>
+        ${horsCours ? "" : `<button class="btn-ico" style="float:right" title="Imprimer la fiche de cette journée" onclick="imprimerRepartition('${iso}')">🖨</button>`}</h3>
+      ${contenu}
+    </div>`;
+  }).join("");
+
+  return `${enTete}<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start">${jours}</div>`;
+}
+
+function dupliquerSemaine() {
+  const nom = prompt("Nom de la nouvelle semaine :", "Semaine " + String.fromCharCode(65 + etat.semaines.length));
+  if (!nom) return;
+  const s = { id: genId("s"), nom, planning: JSON.parse(JSON.stringify(etat.planning)) };
+  etat.semaines.push(s);
+  changerSemaine(s.id);
+}
+function renommerSemaine() {
+  const act = semaineActive();
+  const nom = prompt("Nom de la semaine :", act.nom);
+  if (nom) { act.nom = nom; sauver(); rendre(); }
+}
+function supprimerSemaine() {
+  if (etat.semaines.length <= 1) { alert("Impossible de supprimer la dernière semaine."); return; }
+  const act = semaineActive();
+  if (!confirm(`Supprimer « ${act.nom} » et son planning ?`)) return;
+  etat.semaines = etat.semaines.filter((s) => s.id !== act.id);
+  changerSemaine(etat.semaines[0].id);
+}
+
+function toggleAbsence(aedId, jour) {
+  if (!etat.absences[aedId]) etat.absences[aedId] = {};
+  if (etat.absences[aedId][jour]) delete etat.absences[aedId][jour];
+  else etat.absences[aedId][jour] = 1;
+  sauver(); rendre();
+}
+
+function setVue(v) { vue = v; rendre(); }
+
+// ---------- Export / import ----------
+function telechargerJson(data, nomFichier) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = nomFichier; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function journaliser(msg) {
+  (etat.audit = etat.audit || []).push({ t: Date.now(), msg });
+  if (etat.audit.length > 300) etat.audit.shift();
+}
+function exporter() {
+  etat.dernierExport = Date.now();
+  journaliser("Export JSON manuel");
+  sauver();
+  telechargerJson(etat, "edt-aed-rh.json");
+}
+function importer(e) {
+  const f = e.target.files[0]; if (!f) return;
+  const lecteur = new FileReader();
+  lecteur.onload = () => {
+    try {
+      const d = JSON.parse(lecteur.result);
+      if (d.aeds && d.postes && d.planning) {
+        etat = migrer(d); aedActif = d.aeds[0]?.id; posteActif = d.postes[0]?.id;
+        normaliser();
+        sauver(); rendre();
+      } else alert("Fichier invalide.");
+    } catch (err) { alert("Fichier illisible."); }
+  };
+  lecteur.readAsText(f);
+  e.target.value = "";
+}
+
+// ---------- Rendu ----------
+function rendre() {
+  document.getElementById("titre").value = etat.titre;
+  document.getElementById("sel-semaine").innerHTML =
+    etat.semaines.map((s) => `<option value="${s.id}"${s.id === etat.semaineActive ? " selected" : ""}>${ech(s.nom)}</option>`).join("");
+  rendreBande();
+  const aed = etat.aeds.find((a) => a.id === aedActif);
+  rendreAeds(); rendrePostes(); rendreAlertes();
+  document.getElementById("onglet-aed").className = "onglet" + (vue === "aed" ? " actif" : "");
+  document.getElementById("onglet-equipe").className = "onglet" + (vue === "equipe" ? " actif" : "");
+  document.getElementById("onglet-etude").className = "onglet" + (vue === "etude" ? " actif" : "");
+  document.getElementById("onglet-absences").className = "onglet" + (vue === "absences" ? " actif" : "");
+  document.getElementById("onglet-annee").className = "onglet" + (vue === "annee" ? " actif" : "");
+  document.getElementById("onglet-dossiers").className = "onglet" + (vue === "dossiers" ? " actif" : "");
+  document.getElementById("onglet-repartition").className = "onglet" + (vue === "repartition" ? " actif" : "");
+  document.getElementById("onglet-mois").className = "onglet" + (vue === "mois" ? " actif" : "");
+  document.getElementById("onglet-reglages").className = "onglet" + (vue === "reglages" ? " actif" : "");
+  document.getElementById("contenu").innerHTML =
+    vue === "aed" ? (aed ? htmlGrille(aed) : "<div class='carte'>Ajoutez un AED pour commencer.</div>") :
+    vue === "etude" ? htmlVisionEtude() :
+    vue === "absences" ? htmlAbsences() :
+    vue === "annee" ? htmlAnnee() :
+    vue === "dossiers" ? htmlDossiers() :
+    vue === "repartition" ? htmlRepartition() :
+    vue === "mois" ? htmlMois() :
+    vue === "reglages" ? htmlReglages() : htmlSynthese();
+  // rappel de sauvegarde : point rouge sur le bouton JSON si > 7 jours sans export
+  const retard = !etat.dernierExport || Date.now() - etat.dernierExport > 7 * 864e5;
+  document.getElementById("btn-json").style.boxShadow = retard ? "0 0 0 2px #fda4af" : "none";
+  majBoutonFichierAuto();
+}
+
+function rendreAeds() {
+  document.getElementById("liste-aeds").innerHTML = etat.aeds.map((a) => {
+    const h = heuresSemaine(a.id);
+    const pct = Math.min(100, a.quotite ? (h / a.quotite) * 100 : 0);
+    const dep = h > a.quotite;
+    return `<div class="ligne-aed${a.id === aedActif && vue === "aed" ? " actif" : ""}" onclick="choisirAed('${a.id}')">
+      <div class="rang1">
+        <input class="nom" value="${ech(a.nom)}" onclick="event.stopPropagation()" onchange="majAed('${a.id}','nom',this.value)">
+        <input class="quotite" type="number" step="0.5" min="1" max="48" value="${a.quotite}" title="Quotité hebdomadaire (h)" onclick="event.stopPropagation()" onchange="majAed('${a.id}','quotite',this.value)">
+        <button class="btn-suppr" onclick="event.stopPropagation();supprimerAed('${a.id}')">✕</button>
+      </div>
+      <div class="contrat" onclick="event.stopPropagation()">
+        <label>Type<select title="Type de contrat" onchange="majAed('${a.id}','contratType',this.value)">
+          <option value="CDD"${(a.contratType || "CDD") === "CDD" ? " selected" : ""}>CDD</option>
+          <option value="CDI"${a.contratType === "CDI" ? " selected" : ""}>CDI</option>
+        </select></label>
+        <label>Début<input type="date" value="${a.contratDebut || ""}" title="Début du contrat en cours" onchange="majAed('${a.id}','contratDebut',this.value)"></label>
+        <label>Fin<input type="date" value="${a.contratFin || ""}" title="${a.contratType === "CDI" ? "Non requis pour un CDI" : "Fin du contrat en cours"}" ${a.contratType === "CDI" ? "disabled" : ""} onchange="majAed('${a.id}','contratFin',this.value)"></label>
+        <label>1er AED<input type="date" value="${a.statutDepuis || ""}" title="Première prise de fonction comme AED, pour la limite des 6 ans" onchange="majAed('${a.id}','statutDepuis',this.value)"></label>
+      </div>
+      <div class="contact" onclick="event.stopPropagation()">
+        <input value="${ech(a.telephone || "")}" placeholder="Téléphone" title="Téléphone" onchange="majAed('${a.id}','telephone',this.value)">
+        <input type="email" value="${ech(a.email || "")}" placeholder="Mail" title="Mail" onchange="majAed('${a.id}','email',this.value)">
+      </div>
+      <div class="rang2">
+        <div class="barre"><div class="${dep ? "depasse" : ""}" style="width:${pct}%"></div></div>
+        <span class="heures${dep ? " depasse" : ""}">${fmtH(h)} / ${fmtH(a.quotite)}</span>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function rendrePostes() {
+  document.getElementById("liste-postes").innerHTML = etat.postes.map((p) =>
+    `<div class="ligne-poste${p.id === posteActif && !gomme ? " actif" : ""}" onclick="choisirPoste('${p.id}')">
+      <span class="pastille" style="background:${COULEURS[p.couleur].fond}"></span>
+      <input value="${ech(p.nom)}" onclick="event.stopPropagation()" onchange="majPoste('${p.id}',this.value)">
+      <button class="btn-suppr" onclick="event.stopPropagation();supprimerPoste('${p.id}')">✕</button>
+    </div>`
+  ).join("") +
+  `<div class="ligne-poste${gomme ? " actif" : ""}" onclick="choisirGomme()">
+    <span style="font-size:13px">🧽</span><span style="font-size:13px;flex:1">Gomme</span>
+  </div>
+  <div class="ligne-poste${outilIndispo ? " actif" : ""}" onclick="choisirIndispo()" title="Créneaux où l'AED ne peut pas travailler (cours à la fac...) : impossible d'y poser un poste">
+    <span style="font-size:13px">🚫</span><span style="font-size:13px;flex:1">Indisponibilité</span>
+  </div>`;
+}
+
+function rendreAlertes() {
+  const alertes = calculerAlertes();
+  document.getElementById("alertes").innerHTML = alertes.length === 0
+    ? `<p class="ok">✓ Aucun conflit détecté</p>`
+    : alertes.map(([nom, msg]) => `<div class="alerte">⚠️ <span><b>${ech(nom)}</b> — ${ech(msg)}</span></div>`).join("");
+}
+
+function htmlGrille(aed) {
+  let lignes = "";
+  for (let cr = 0; cr < NB; cr++) {
+    lignes += `<tr class="${classeCran(cr)}"><td class="heure-col">${labelColonne(cr)}</td>`;
+    for (const jour of JOURS) {
+      const pid = (etat.planning[aed.id] || {})[jour]?.[cr];
+      const poste = pid ? posteParId(pid) : null;
+      const ind = estIndispo(aed.id, jour, cr);
+      const prec = (etat.planning[aed.id] || {})[jour]?.[cr - 1];
+      const debut = pid && prec !== pid;
+      const debutInd = ind && !pid && !estIndispo(aed.id, jour, cr - 1);
+      let style = poste ? `background:${COULEURS[poste.couleur].fond}` :
+        ind ? "background:repeating-linear-gradient(45deg,#cbd5e1 0 3px,#f1f5f9 3px 7px)" : "";
+      if (estAbsent(aed.id, jour)) style += ";filter:grayscale(.7);opacity:.4";
+      const etiquette = debut && poste ? `<span class="etiquette" style="color:${COULEURS[poste.couleur].texte}">${ech(poste.nom)}</span>` :
+        debutInd ? `<span class="etiquette" style="color:#64748b">Indispo.</span>` : "";
+      lignes += `<td class="creneau${poste ? " occupe" : ""}${ind ? " indispo" : ""}" style="${style}" data-jour="${jour}" data-cr="${cr}" data-pid="${pid || ""}" title="${poste ? ech(poste.nom) + " — " : ind ? "Indisponible — " : ""}${labelHeure(cr)}">${etiquette}</td>`;
+    }
+    lignes += "</tr>";
+  }
+  const optionsJours = (sel) => JOURS.map((j) => `<option${j === sel ? " selected" : ""}>${j}</option>`).join("");
+  return `<div class="carte">
+    <div class="entete-grille">
+      <h3>${ech(aed.nom)} <span class="sous">— ${fmtH(heuresSemaine(aed.id))} / ${fmtH(aed.quotite)}</span></h3>
+      <div class="copie">📋
+        <select onchange="srcCopie=this.value">${optionsJours(srcCopie)}</select> →
+        <select onchange="dstCopie=this.value">${optionsJours(dstCopie)}</select>
+        <button onclick="copierJour()">Copier</button>
+      </div>
+    </div>
+    <table id="grille">
+      <thead><tr><th class="heure-col"></th>${JOURS.map((j) => {
+        const abs = estAbsent(aed.id, j);
+        return `<th>${j}<div class="ss-total">${abs ? "" : fmtH(heuresJour(aed.id, j))}</div>
+          <label class="case-abs${abs ? " on" : ""}"><input type="checkbox"${abs ? " checked" : ""} onchange="toggleAbsence('${aed.id}','${j}')">absent</label></th>`;
+      }).join("")}</tr></thead>
+      <tbody>${lignes}</tbody>
+    </table>
+    <div class="legende">${etat.postes.map((p) =>
+      `<span><i style="background:${COULEURS[p.couleur].fond}"></i>${ech(p.nom)}</span>`).join("")}</div>
+  </div>`;
+}
+
+// ---------- Calendrier (fériés, vacances, décompte des absences) ----------
+const isoLocal = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+const frDate = (iso) => { const [y, m, d] = iso.split("-"); return d + "/" + m + "/" + y; };
+function paques(annee) { // algorithme de Gauss/Butcher
+  const a = annee % 19, b = Math.floor(annee / 100), c = annee % 100;
+  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+  return new Date(annee, Math.floor((h + l - 7 * m + 114) / 31) - 1, ((h + l - 7 * m + 114) % 31) + 1);
+}
+function feriesAnnee(annee) {
+  const p = paques(annee), plus = (n) => { const d = new Date(p); d.setDate(d.getDate() + n); return isoLocal(d); };
+  return [
+    [`${annee}-01-01`, "Jour de l'an"], [plus(1), "Lundi de Pâques"], [`${annee}-05-01`, "Fête du Travail"],
+    [`${annee}-05-08`, "Victoire 1945"], [plus(39), "Ascension"], [plus(50), "Lundi de Pentecôte"],
+    [`${annee}-07-14`, "Fête nationale"], [`${annee}-08-15`, "Assomption"], [`${annee}-11-01`, "Toussaint"],
+    [`${annee}-11-11`, "Armistice"], [`${annee}-12-25`, "Noël"],
+  ];
+}
+function feriesAnneeScolaire() {
+  const { debutAnnee, finAnnee } = etat.reglages;
+  const annees = [...new Set([+debutAnnee.slice(0, 4), +finAnnee.slice(0, 4)])];
+  return annees.flatMap(feriesAnnee).filter(([iso]) => iso >= debutAnnee && iso <= finAnnee).sort();
+}
+const estFerie = (iso) => feriesAnneeScolaire().some(([f]) => f === iso);
+const estVacancesIso = (iso) => etat.reglages.vacances.some((v) => v.du <= iso && iso <= v.au);
+const dansAnnee = (iso) => etat.reglages.debutAnnee <= iso && iso <= etat.reglages.finAnnee;
+function numeroSemaineIso(iso) {
+  const d = new Date(iso + "T12:00:00");
+  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+  const debut = new Date(d.getFullYear(), 0, 1);
+  return Math.ceil((((d - debut) / 864e5) + 1) / 7);
+}
+function semainePourDate(iso) {
+  const alt = etat.reglages.alternance || {};
+  if (iso && alt.mode === "paireImpaire") {
+    const id = numeroSemaineIso(iso) % 2 === 0 ? alt.semainePaire : alt.semaineImpaire;
+    return etat.semaines.find((s) => s.id === id) || semaineActive() || etat.semaines[0];
+  }
+  return semaineActive() || etat.semaines[0];
+}
+const lundiDeSemaine = (iso) => {
+  const d = new Date(iso + "T12:00:00");
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return isoLocal(d);
+};
+function planningPourDate(iso) {
+  if (iso && etat.derogations) {
+    const der = etat.derogations[lundiDeSemaine(iso)];
+    if (der) return der; // semaine réelle modifiée : elle prime sur la semaine type
+  }
+  return (semainePourDate(iso)?.planning) || etat.planning || {};
+}
+function nomSemainePourDate(iso) {
+  const sem = semainePourDate(iso);
+  return sem ? sem.nom : "";
+}
+// heures du planning type pour un jour de semaine (indépendant de la case "absent")
+const heuresPlanifiees = (aedId, jourNom, iso) =>
+  Object.keys((planningPourDate(iso)[aedId] || {})[jourNom] || {}).length * PAS / 60;
+function heuresPlanifieesEntre(aedId, duIso, auIso) {
+  if (!duIso || !auIso || auIso < duIso) return 0;
+  let total = 0, garde = 0;
+  const d = new Date(duIso + "T12:00:00");
+  const fin = new Date(auIso + "T12:00:00");
+  while (d <= fin && garde++ < 500) {
+    const iso = isoLocal(d);
+    const idxJour = (d.getDay() + 6) % 7;
+    if (idxJour < 5 && dansAnnee(iso) && !estFerie(iso) && !estVacancesIso(iso))
+      total += heuresPlanifiees(aedId, JOURS[idxJour], iso);
+    d.setDate(d.getDate() + 1);
+  }
+  return total;
+}
+
+// jours effectivement décomptés pour une absence datée
+function joursDecomptes(abs) {
+  const res = [];
+  const d = new Date(abs.du + "T12:00:00");
+  const fin = new Date(abs.au + "T12:00:00");
+  let garde = 0;
+  while (d <= fin && garde++ < 400) {
+    const iso = isoLocal(d);
+    const idxJour = (d.getDay() + 6) % 7; // 0 = Lundi
+    if (idxJour < 5 && dansAnnee(iso) && !estFerie(iso) && !estVacancesIso(iso)) {
+      const jourNom = JOURS[idxJour];
+      res.push({ iso, jourNom, semaine: nomSemainePourDate(iso), heures: heuresPlanifiees(abs.aedId, jourNom, iso) });
+    }
+    d.setDate(d.getDate() + 1);
+  }
+  return res;
+}
+
+function ajouterAbsence() {
+  const aedId = document.getElementById("abs-aed").value;
+  const du = document.getElementById("abs-du").value;
+  const au = document.getElementById("abs-au").value || du;
+  const motif = document.getElementById("abs-motif").value;
+  const note = document.getElementById("abs-note").value.trim();
+  const rattraper = document.getElementById("abs-rattraper").checked;
+  if (!aedId || !du) { alert("Choisissez un AED et une date de début."); return; }
+  if (au < du) { alert("La date de fin est avant le début."); return; }
+  etat.absencesAn.push({ id: genId("abs"), aedId, du, au, motif, note, rattraper });
+  journaliser(`Absence ${motif} ajoutée : ${etat.aeds.find((x) => x.id === aedId)?.nom} (${frDate(du)}${au !== du ? " → " + frDate(au) : ""})`);
+  sauver(); rendre();
+}
+function supprimerAbsence(id) {
+  etat.absencesAn = etat.absencesAn.filter((a) => a.id !== id);
+  journaliser("Absence supprimée");
+  sauver(); rendre();
+}
+function majRattraper(id, coche) {
+  const abs = etat.absencesAn.find((a) => a.id === id);
+  if (abs) { abs.rattraper = coche; sauver(); rendre(); }
+}
+function majDefautRattrapage(motif) {
+  document.getElementById("abs-rattraper").checked = RATTRAPAGE_DEFAUT[motif] ?? true;
+}
+
+// ---------- Journal des heures ± et bilan annuel ----------
+const aujourdhuiIso = () => isoLocal(new Date());
+// nombre de jours de cours (lun-ven, hors fériés et vacances) entre deux dates incluses
+function joursCoursEntre(duIso, auIso) {
+  if (!duIso || !auIso || auIso < duIso) return 0;
+  let n = 0, garde = 0;
+  const d = new Date(duIso + "T12:00:00");
+  const fin = new Date(auIso + "T12:00:00");
+  while (d <= fin && garde++ < 500) {
+    const iso = isoLocal(d);
+    const idxJour = (d.getDay() + 6) % 7;
+    if (idxJour < 5 && dansAnnee(iso) && !estFerie(iso) && !estVacancesIso(iso)) n++;
+    d.setDate(d.getDate() + 1);
+  }
+  return n;
+}
+const maxIso = (...dates) => dates.filter(Boolean).sort().at(-1) || "";
+const minIso = (...dates) => dates.filter(Boolean).sort()[0] || "";
+function debutContrat(a) { return a.contratDebut || etat.reglages.debutAnnee; }
+function finContrat(a) { return a.contratFin || etat.reglages.finAnnee; }
+function debutStatut(a) { return a.statutDepuis || a.contratDebut || ""; }
+function borneContratAnnee(a) {
+  const debut = maxIso(etat.reglages.debutAnnee, debutContrat(a));
+  const fin = minIso(etat.reglages.finAnnee, finContrat(a));
+  return { debut, fin, actif: debut && fin && debut <= fin };
+}
+function dateDansContrat(a, iso) {
+  return iso >= debutContrat(a) && iso <= finContrat(a);
+}
+function semainesContrat(a, jusquaIso) {
+  const b = borneContratAnnee(a);
+  if (!b.actif) return 0;
+  const fin = jusquaIso ? minIso(b.fin, jusquaIso) : b.fin;
+  return fin >= b.debut ? joursCoursEntre(b.debut, fin) / 5 : 0;
+}
+function sixAnsApres(iso) {
+  if (!iso) return "";
+  const d = new Date(iso + "T12:00:00");
+  d.setFullYear(d.getFullYear() + 6);
+  return isoLocal(d);
+}
+function joursAvant(iso) {
+  if (!iso) return Infinity;
+  const d = new Date(iso + "T12:00:00");
+  const auj = new Date(aujourdhuiIso() + "T12:00:00");
+  return Math.ceil((d - auj) / 864e5);
+}
+function contratLibelle(a) {
+  const debut = a.contratDebut ? frDate(a.contratDebut) : frDate(etat.reglages.debutAnnee);
+  if (a.contratType === "CDI") return "CDI depuis " + debut;
+  return "CDD " + debut + " → " + (a.contratFin ? frDate(a.contratFin) : "fin non renseignée");
+}
+
+function ajouterEcriture() {
+  const aedId = document.getElementById("ecr-aed").value;
+  const date = document.getElementById("ecr-date").value;
+  const motif = document.getElementById("ecr-motif").value;
+  let heures = parseFloat(document.getElementById("ecr-heures").value);
+  const note = document.getElementById("ecr-note").value.trim();
+  if (!aedId || !date || !heures) { alert("Choisissez un AED, une date et une durée non nulle."); return; }
+  if (motif === "Récupération" && heures > 0) heures = -heures; // une récup se décompte
+  etat.heuresJournal.push({ id: genId("e"), aedId, date, heures, motif, note });
+  journaliser(`Écriture ${motif} ${heures > 0 ? "+" : ""}${heures}h : ${etat.aeds.find((x) => x.id === aedId)?.nom}`);
+  sauver(); rendre();
+}
+function supprimerEcriture(id) { etat.heuresJournal = etat.heuresJournal.filter((e) => e.id !== id); sauver(); rendre(); }
+
+function bilanAed(a) {
+  const auj = aujourdhuiIso();
+  const { finAnnee } = etat.reglages;
+  const finComptee = auj < finAnnee ? auj : finAnnee;
+  const bornes = borneContratAnnee(a);
+  const semEcoulees = semainesContrat(a, finComptee);
+  const semTotales = semainesContrat(a);
+  const finADate = bornes.actif ? minIso(bornes.fin, finComptee) : "";
+  const planifieADate = bornes.actif && finADate >= bornes.debut ? heuresPlanifieesEntre(a.id, bornes.debut, finADate) : 0;
+  const planifieTotal = bornes.actif ? heuresPlanifieesEntre(a.id, bornes.debut, bornes.fin) : 0;
+  const hebdo = semTotales ? planifieTotal / semTotales : JOURS.reduce((t, j) => t + heuresPlanifiees(a.id, j), 0);
+  let absADate = 0, absTotal = 0;
+  // seules les absences « à rattraper » créent une dette (maladie, formation... : service réputé fait)
+  for (const abs of etat.absencesAn.filter((x) => x.aedId === a.id && x.rattraper))
+    for (const j of joursDecomptes(abs)) {
+      if (!dateDansContrat(a, j.iso)) continue;
+      absTotal += j.heures;
+      if (j.iso <= auj) absADate += j.heures;
+    }
+  let jrnADate = 0, jrnTotal = 0, adminH = 0, adminN = 0;
+  for (const e of etat.heuresJournal.filter((x) => x.aedId === a.id)) {
+    if (!dateDansContrat(a, e.date)) continue;
+    jrnTotal += e.heures;
+    if (e.date <= auj) jrnADate += e.heures;
+    if (e.motif === "Journée administrative") { adminH += e.heures; adminN++; }
+  }
+  const du = a.quotite * semTotales;
+  const realise = planifieADate - absADate + jrnADate;
+  const projection = planifieTotal - absTotal + jrnTotal;
+  return { hebdo, semEcoulees, semTotales, planifieADate, planifieTotal, absADate, absTotal, jrnADate, jrnTotal, adminH, adminN, du, realise, projection, ecart: projection - du };
+}
+
+function htmlAnnee() {
+  const auj = aujourdhuiIso();
+  const { debutAnnee, finAnnee } = etat.reglages;
+  const semTot = joursCoursEntre(debutAnnee, finAnnee) / 5;
+  const semEc = joursCoursEntre(debutAnnee, auj < finAnnee ? auj : finAnnee) / 5;
+  const alternanceAuto = etat.reglages.alternance?.mode === "paireImpaire";
+
+  const lignesJournal = etat.heuresJournal.slice().sort((a, b) => b.date.localeCompare(a.date)).map((e) => {
+    const aed = etat.aeds.find((x) => x.id === e.aedId);
+    return `<tr>
+      <td class="centre">${frDate(e.date)}</td>
+      <td class="centre" style="font-weight:600">${aed ? ech(aed.nom) : "?"}</td>
+      <td class="centre">${ech(e.motif)}${e.note ? `<div style="font-size:11px;color:#94a3b8">${ech(e.note)}</div>` : ""}</td>
+      <td class="centre" style="font-weight:700;color:${e.heures >= 0 ? "#059669" : "#e11d48"}">${e.heures >= 0 ? "+" : "−"}${fmtH(Math.abs(e.heures))}</td>
+      <td class="centre"><button class="btn-suppr" onclick="supprimerEcriture('${e.id}')">✕</button></td>
+    </tr>`;
+  }).join("");
+
+  const lignesBilan = etat.aeds.map((a) => {
+    const b = bilanAed(a);
+    const cEcart = b.ecart < 0 ? "#e11d48" : b.ecart > 0 ? "#d97706" : "#059669";
+    return `<tr>
+      <td class="centre" style="text-align:left;font-weight:600">${ech(a.nom)}</td>
+      <td class="centre" style="font-size:11px">${contratLibelle(a)}</td>
+      <td class="centre">${b.semTotales.toFixed(1)}</td>
+      <td class="centre">${fmtH(b.hebdo)}</td>
+      <td class="centre" style="font-weight:600">${fmtH(b.du)}</td>
+      <td class="centre">${fmtH(b.realise)}</td>
+      <td class="centre" style="color:#e11d48">${b.absADate ? "−" + fmtH(b.absADate) : "—"}</td>
+      <td class="centre">${b.adminN ? `${b.adminN} j · ${fmtH(b.adminH)}` : "—"}</td>
+      <td class="centre" style="color:${b.jrnTotal >= 0 ? "#059669" : "#e11d48"}">${b.jrnTotal ? (b.jrnTotal > 0 ? "+" : "−") + fmtH(Math.abs(b.jrnTotal)) : "—"}</td>
+      <td class="centre" style="font-weight:600">${fmtH(b.projection)}</td>
+      <td class="centre" style="font-weight:700;color:${cEcart}">${b.ecart > 0 ? "+" : b.ecart < 0 ? "−" : ""}${fmtH(Math.abs(b.ecart))}</td>
+    </tr>`;
+  }).join("");
+
+  return `<div class="carte" style="margin-bottom:14px">
+    <h3 style="font-size:15px;margin-bottom:4px">Année scolaire ${frDate(debutAnnee)} → ${frDate(finAnnee)}</h3>
+    <p class="aide" style="margin:0">Semaines de cours : <b>${semEc.toFixed(1)}</b> écoulées sur <b>${semTot.toFixed(1)}</b> (jours ouvrés hors vacances et fériés ÷ 5).
+    Mode planning : <b>${alternanceAuto ? "alternance paire/impaire du calendrier" : "semaine affichée"}</b>.
+    Les journées administratives — permanences pendant les vacances, qui font partie du service des AED — se saisissent dans le journal ci-dessous.</p>
+  </div>
+  <div class="carte" style="margin-bottom:14px">
+    <h3 style="font-size:15px;margin-bottom:8px">Journal des heures ± (journées administratives, heures supplémentaires, récupérations…)</h3>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:10px">
+      <label style="font-size:12px;color:#475569">AED<br><select id="ecr-aed" style="font-size:13px">${etat.aeds.map((a) => `<option value="${a.id}">${ech(a.nom)}</option>`).join("")}</select></label>
+      <label style="font-size:12px;color:#475569">Date<br><input type="date" id="ecr-date" min="${debutAnnee}" max="${finAnnee}" style="font-size:13px"></label>
+      <label style="font-size:12px;color:#475569">Motif<br><select id="ecr-motif" style="font-size:13px">${MOTIFS_HEURES.map((m) => `<option>${m}</option>`).join("")}</select></label>
+      <label style="font-size:12px;color:#475569">Heures<br><input type="number" id="ecr-heures" step="0.25" placeholder="7 ou -2" style="font-size:13px;width:78px"></label>
+      <label style="font-size:12px;color:#475569">Note<br><input id="ecr-note" placeholder="facultatif" style="font-size:13px;width:150px;border:1px solid #cbd5e1;border-radius:6px;padding:4px 6px"></label>
+      <button class="btn btn-bleu" onclick="ajouterEcriture()">Ajouter</button>
+    </div>
+    <p class="aide" style="margin:0 0 8px">Positif = heures effectuées en plus (journée administrative : ex. +7). Négatif = heures récupérées (le motif « Récupération » passe automatiquement en négatif).</p>
+    ${etat.heuresJournal.length ? `<table style="max-width:760px">
+      <thead><tr><th>Date</th><th>AED</th><th>Motif</th><th>Heures</th><th></th></tr></thead>
+      <tbody>${lignesJournal}</tbody>
+    </table>` : `<p class="aide">Aucune écriture.</p>`}
+  </div>
+  <div class="carte">
+    <h3 style="font-size:15px;margin-bottom:8px">Bilan annuel par AED</h3>
+    <p class="aide" style="margin:0 0 8px">Dû = quotité × semaines de cours couvertes par le contrat de l'AED.
+    Réalisé à date = heures planifiées jour par jour dans le contrat − absences à rattraper + journal.
+    Seules les absences cochées « à rattraper » (convenance personnelle...) créent une dette : maladie, formation, grève et garde d'enfant sont sans effet sur le bilan.
+    Projection = même calcul sur l'année entière${alternanceAuto ? " avec la bonne semaine A/B pour chaque date" : ""} : c'est l'écart projeté qu'il faut surveiller (rouge = heures manquantes à rattraper).</p>
+    <table>
+      <thead><tr><th style="text-align:left">AED</th><th>Contrat</th><th>Sem. dues</th><th>${alternanceAuto ? "Hebdo moyen" : "Hebdo posé"}</th><th>Dû annuel</th><th>Réalisé à date</th><th>Abs. à rattraper (à date)</th><th>J. admin</th><th>Journal ±</th><th>Projection</th><th>Écart projeté</th></tr></thead>
+      <tbody>${lignesBilan}</tbody>
+    </table>
+  </div>`;
+}
+
+// ---------- Dossiers AED (RH) ----------
+function majRh(aedId, champ, val) {
+  const a = etat.aeds.find((x) => x.id === aedId);
+  if (a) { a.rh[champ] = val; sauver(); rendre(); }
+}
+function ajouterContrat(aedId) {
+  const a = etat.aeds.find((x) => x.id === aedId);
+  if (!a) return;
+  a.rh.contrats.push({ id: genId("c"), type: "CDD", du: etat.reglages.debutAnnee, au: etat.reglages.finAnnee, quotite: a.quotite, finEssai: "", note: "" });
+  sauver(); rendre();
+}
+function majContrat(aedId, cId, champ, val) {
+  const c = etat.aeds.find((x) => x.id === aedId)?.rh.contrats.find((x) => x.id === cId);
+  if (c) { c[champ] = champ === "quotite" ? (parseFloat(val) || 0) : val; sauver(); rendre(); }
+}
+// Entretiens et formations
+function ajouterEntretien(aedId) {
+  const a = etat.aeds.find((x) => x.id === aedId);
+  a.rh.entretiens.push({ id: genId("en"), date: aujourdhuiIso(), realise: false, cr: "" });
+  journaliser(`Entretien créé pour ${a.nom}`);
+  sauver(); rendre();
+}
+function majEntretien(aedId, eId, champ, val) {
+  const e = etat.aeds.find((x) => x.id === aedId)?.rh.entretiens.find((x) => x.id === eId);
+  if (e) { e[champ] = val; sauver(); rendre(); }
+}
+function supprimerEntretien(aedId, eId) {
+  const a = etat.aeds.find((x) => x.id === aedId);
+  if (a) { a.rh.entretiens = a.rh.entretiens.filter((x) => x.id !== eId); sauver(); rendre(); }
+}
+function ajouterFormation(aedId) {
+  const a = etat.aeds.find((x) => x.id === aedId);
+  a.rh.formations.push({ id: genId("f"), nom: "PSC1", date: aujourdhuiIso(), validite: "", note: "" });
+  journaliser(`Formation ajoutée pour ${a.nom}`);
+  sauver(); rendre();
+}
+function majFormation(aedId, fId, champ, val) {
+  const f = etat.aeds.find((x) => x.id === aedId)?.rh.formations.find((x) => x.id === fId);
+  if (f) { f[champ] = val; sauver(); rendre(); }
+}
+function supprimerFormation(aedId, fId) {
+  const a = etat.aeds.find((x) => x.id === aedId);
+  if (a) { a.rh.formations = a.rh.formations.filter((x) => x.id !== fId); sauver(); rendre(); }
+}
+function majStatutAbsence(id, statut) {
+  const abs = etat.absencesAn.find((a) => a.id === id);
+  if (abs) { abs.statut = statut; journaliser(`Absence ${statut.toLowerCase()}`); sauver(); rendre(); }
+}
+
+function appliquerContrat(aedId, cId) {
+  const a = etat.aeds.find((x) => x.id === aedId);
+  const c = a?.rh.contrats.find((x) => x.id === cId);
+  if (!c) return;
+  a.contratType = c.type;
+  a.contratDebut = c.du || "";
+  a.contratFin = c.type === "CDI" ? "" : (c.au || "");
+  if (c.quotite) a.quotite = c.quotite;
+  journaliser(`Contrat en cours mis à jour pour ${a.nom} (${c.type} ${c.du || "?"})`);
+  sauver(); rendre();
+}
+function supprimerContrat(aedId, cId) {
+  const a = etat.aeds.find((x) => x.id === aedId);
+  if (!a || !confirm("Supprimer ce contrat de l'historique ?")) return;
+  a.rh.contrats = a.rh.contrats.filter((c) => c.id !== cId);
+  sauver(); rendre();
+}
+function ajouterObs(aedId) {
+  const texte = document.getElementById("obs-texte").value.trim();
+  if (!texte) return;
+  const a = etat.aeds.find((x) => x.id === aedId);
+  a.rh.obs.push({ id: genId("o"), date: aujourdhuiIso(), texte });
+  sauver(); rendre();
+}
+function supprimerObs(aedId, oId) {
+  const a = etat.aeds.find((x) => x.id === aedId);
+  if (a) { a.rh.obs = a.rh.obs.filter((o) => o.id !== oId); sauver(); rendre(); }
+}
+
+const contratActif = (a, iso) => (a.rh?.contrats || []).find((c) => c.du && c.du <= iso && (c.type === "CDI" || !c.au || iso <= c.au));
+
+// Alertes complémentaires (fins de contrat, 6 ans et entretiens sont déjà dans les alertes latérales)
+function alertesRh() {
+  const res = [];
+  for (const a of etat.aeds) {
+    const rh = a.rh || {};
+    for (const c of rh.contrats || []) {
+      if (c.finEssai) {
+        const reste = joursAvant(c.finEssai);
+        if (reste >= 0 && reste <= 15) res.push([a.nom, `fin de période d'essai le ${frDate(c.finEssai)} (J-${reste})`, "#e11d48"]);
+      }
+    }
+    for (const f of rh.formations || []) {
+      if (f.validite) {
+        const reste = joursAvant(f.validite);
+        if (reste < 0) res.push([a.nom, `formation ${f.nom} expirée depuis le ${frDate(f.validite)}`, "#e11d48"]);
+        else if (reste <= 60) res.push([a.nom, `formation ${f.nom} expire le ${frDate(f.validite)} (J-${reste})`, "#d97706"]);
+      }
+    }
+    // entretien annuel : alerte à partir de mars si aucun entretien réalisé dans l'année scolaire
+    const auj = aujourdhuiIso();
+    if (dansAnnee(auj) && new Date().getMonth() >= 2 && new Date().getMonth() <= 6) {
+      const fait = (rh.entretiens || []).some((e) => e.realise && dansAnnee(e.date));
+      if (!fait) res.push([a.nom, "entretien annuel non réalisé", "#d97706"]);
+    }
+    if (!a.telephone) res.push([a.nom, "dossier incomplet : téléphone manquant", "#d97706"]);
+  }
+  const aRegulariser = etat.absencesAn.filter((x) => x.statut === "Déclarée").length;
+  if (aRegulariser) res.push(["Équipe", `${aRegulariser} absence(s) au statut « Déclarée » à régulariser (🗓 Absences)`, "#d97706"]);
+  return res;
+}
+
+function htmlDossiers() {
+  const a = etat.aeds.find((x) => x.id === aedActif) || etat.aeds[0];
+  if (!a) return "<div class='carte'>Ajoutez un AED pour commencer.</div>";
+  const rh = a.rh;
+  const auj = aujourdhuiIso();
+
+  const alertes = alertesRh();
+  const carteAlertes = alertes.length ? `<div class="carte" style="margin-bottom:14px;border-color:#fecdd3">
+    <h3 style="font-size:15px;margin-bottom:6px">🔔 Alertes RH complémentaires <span style="font-weight:400;font-size:12px;color:#94a3b8">(contrats, 6 ans et entretiens : voir les alertes de la barre latérale)</span></h3>
+    ${alertes.map(([nom, msg, coul]) => `<div style="font-size:13px;margin:3px 0"><b style="color:${coul}">${ech(nom)}</b> — ${ech(msg)}</div>`).join("")}
+  </div>` : "";
+
+  const ongletsAed = `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
+    ${etat.aeds.map((x) => `<button class="onglet" style="padding:4px 10px;font-size:12.5px${x.id === a.id ? "" : ""}"
+      ${x.id === a.id ? 'disabled style="padding:4px 10px;font-size:12.5px;background:#2563eb;color:#fff;border-color:#2563eb"' : ""}
+      onclick="aedActif='${x.id}';rendre()">${ech(x.nom)}</button>`).join("")}
+  </div>`;
+
+  const champ = (label, id, type, val, placeholder) => `<label style="font-size:12px;color:#475569">${label}<br>
+    <input type="${type}" value="${ech(val || "")}" placeholder="${placeholder || ""}" onchange="majRh('${a.id}','${id}',this.value)"
+    style="font-size:13px;border:1px solid #cbd5e1;border-radius:6px;padding:5px 7px;width:${type === "date" ? "auto" : "170px"}"></label>`;
+
+  const contrats = rh.contrats.slice().sort((x, y) => (y.du || "").localeCompare(x.du || "")).map((c) => {
+    const actif = contratActif(a, auj) === c;
+    return `<tr${actif ? ' style="background:#eff6ff"' : ""}>
+      <td style="padding:3px 4px"><select onchange="majContrat('${a.id}','${c.id}','type',this.value)" style="font-size:12.5px">
+        ${["CDD", "CDI"].map((t) => `<option${t === c.type ? " selected" : ""}>${t}</option>`).join("")}</select></td>
+      <td style="padding:3px 4px"><input type="date" value="${c.du || ""}" onchange="majContrat('${a.id}','${c.id}','du',this.value)" style="font-size:12.5px"></td>
+      <td style="padding:3px 4px">${c.type === "CDI" ? '<span style="font-size:12px;color:#94a3b8">—</span>' : `<input type="date" value="${c.au || ""}" onchange="majContrat('${a.id}','${c.id}','au',this.value)" style="font-size:12.5px">`}</td>
+      <td style="padding:3px 4px"><input type="number" step="0.5" min="1" max="48" value="${c.quotite}" onchange="majContrat('${a.id}','${c.id}','quotite',this.value)" style="width:56px;font-size:12.5px;text-align:center"></td>
+      <td style="padding:3px 4px"><input type="date" value="${c.finEssai || ""}" onchange="majContrat('${a.id}','${c.id}','finEssai',this.value)" style="font-size:12.5px" title="Fin de période d'essai"></td>
+      <td style="padding:3px 4px"><input value="${ech(c.note || "")}" placeholder="avenant, remarque..." onchange="majContrat('${a.id}','${c.id}','note',this.value)" style="font-size:12.5px;width:140px;border:1px solid #cbd5e1;border-radius:5px;padding:3px 5px"></td>
+      <td class="centre">${actif ? '<span style="font-size:10.5px;background:#2563eb;color:#fff;border-radius:4px;padding:1px 6px">actif</span>' : ""}</td>
+      <td class="centre"><button class="btn-ico" title="Définir comme contrat en cours (alimente prorata, alertes et bilan)" onclick="appliquerContrat('${a.id}','${c.id}')">⤴</button></td>
+      <td class="centre"><button class="btn-suppr" onclick="supprimerContrat('${a.id}','${c.id}')">✕</button></td>
+    </tr>`;
+  }).join("");
+
+  const obs = rh.obs.slice().sort((x, y) => y.date.localeCompare(x.date)).map((o) => `
+    <div style="display:flex;gap:8px;align-items:baseline;font-size:13px;padding:4px 0;border-bottom:1px solid #f1f5f9">
+      <span style="color:#94a3b8;font-size:11.5px;white-space:nowrap">${frDate(o.date)}</span>
+      <span style="flex:1">${ech(o.texte)}</span>
+      <button class="btn-suppr" onclick="supprimerObs('${a.id}','${o.id}')">✕</button>
+    </div>`).join("");
+
+  return `${carteAlertes}${ongletsAed}
+  <div class="carte" style="margin-bottom:14px">
+    <h3 style="font-size:15px;margin-bottom:8px">Fiche — ${ech(a.nom)}</h3>
+    <div style="display:flex;flex-wrap:wrap;gap:12px">
+      <label style="font-size:12px;color:#475569">📞 Téléphone<br><input type="tel" value="${ech(a.telephone || "")}" placeholder="06..." onchange="majAed('${a.id}','telephone',this.value)" style="font-size:13px;border:1px solid #cbd5e1;border-radius:6px;padding:5px 7px;width:150px"></label>
+      <label style="font-size:12px;color:#475569">✉️ Email<br><input type="email" value="${ech(a.email || "")}" placeholder="prenom.nom@..." onchange="majAed('${a.id}','email',this.value)" style="font-size:13px;border:1px solid #cbd5e1;border-radius:6px;padding:5px 7px;width:190px"></label>
+      ${champ("🆘 Personne à prévenir", "urgence", "text", rh.urgence, "nom + téléphone")}
+    </div>
+    <p style="font-size:13px;color:#334155;margin-top:10px"><b>Contrat en cours :</b> ${contratLibelle(a)} · quotité ${fmtH(a.quotite)}${debutStatut(a) ? ` · 1er poste AED : ${frDate(debutStatut(a))} (limite 6 ans : ${frDate(sixAnsApres(debutStatut(a)))})` : ""}</p>
+    <p class="aide" style="margin-top:4px">Le contrat en cours et la date « 1er AED » se modifient dans la carte Équipe (barre latérale) ou via ⤴ dans l'historique ci-dessous.
+    Par choix, pas de RIB, d'INE ni de données médicales ici : ces pièces restent au secrétariat.</p>
+  </div>
+  <div class="carte" style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <h3 style="font-size:15px">Contrats et avenants</h3>
+      <button class="btn-plus" onclick="ajouterContrat('${a.id}')">＋</button>
+    </div>
+    ${rh.contrats.length ? `<table>
+      <thead><tr><th>Type</th><th>Du</th><th>Au</th><th>Quotité (h)</th><th>Fin d'essai</th><th style="text-align:left">Note</th><th></th><th></th><th></th></tr></thead>
+      <tbody>${contrats}</tbody>
+    </table>` : `<p class="aide">Aucun contrat saisi — le bilan annuel utilise alors la quotité simple sans prorata.</p>`}
+    <p class="aide" style="margin-top:6px">Historique documentaire (contrats passés, avenants). Le contrat couvrant la date du jour est surligné ;
+    ⤴ le recopie comme « contrat en cours », qui alimente tous les calculs (prorata du bilan annuel, absences hors contrat, alertes J-60).</p>
+  </div>
+  <div class="carte" style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <h3 style="font-size:15px">Entretiens annuels</h3>
+      <button class="btn-plus" onclick="ajouterEntretien('${a.id}')">＋</button>
+    </div>
+    ${rh.entretiens.length ? `<table>
+      <thead><tr><th>Date</th><th>Réalisé</th><th style="text-align:left">Compte-rendu / objectifs / axes de progrès</th><th></th></tr></thead>
+      <tbody>${rh.entretiens.slice().sort((x, y) => y.date.localeCompare(x.date)).map((e) => `<tr>
+        <td style="padding:3px 4px"><input type="date" value="${e.date}" onchange="majEntretien('${a.id}','${e.id}','date',this.value)" style="font-size:12.5px"></td>
+        <td class="centre"><input type="checkbox"${e.realise ? " checked" : ""} onchange="majEntretien('${a.id}','${e.id}','realise',this.checked)"></td>
+        <td style="padding:3px 4px"><input value="${ech(e.cr || "")}" placeholder="points d'appui, objectifs..." onchange="majEntretien('${a.id}','${e.id}','cr',this.value)" style="width:100%;font-size:12.5px;border:1px solid #cbd5e1;border-radius:5px;padding:3px 5px"></td>
+        <td class="centre"><button class="btn-suppr" onclick="supprimerEntretien('${a.id}','${e.id}')">✕</button></td>
+      </tr>`).join("")}</tbody>
+    </table>` : `<p class="aide">Aucun entretien — l'entretien annuel se tient traditionnellement en mars (une alerte le rappelle).</p>`}
+  </div>
+  <div class="carte" style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <h3 style="font-size:15px">Formations</h3>
+      <button class="btn-plus" onclick="ajouterFormation('${a.id}')">＋</button>
+    </div>
+    ${rh.formations.length ? `<table>
+      <thead><tr><th style="text-align:left">Intitulé</th><th>Date</th><th>Valide jusqu'au</th><th style="text-align:left">Note / justificatif</th><th></th></tr></thead>
+      <tbody>${rh.formations.slice().sort((x, y) => (y.date || "").localeCompare(x.date || "")).map((f) => {
+        const reste = f.validite ? joursAvant(f.validite) : Infinity;
+        const coul = reste < 0 ? "#e11d48" : reste <= 60 ? "#d97706" : "#059669";
+        return `<tr>
+        <td style="padding:3px 4px"><input value="${ech(f.nom)}" onchange="majFormation('${a.id}','${f.id}','nom',this.value)" style="font-size:12.5px;width:150px" placeholder="PSC1, PPMS, sécurité..."></td>
+        <td style="padding:3px 4px"><input type="date" value="${f.date || ""}" onchange="majFormation('${a.id}','${f.id}','date',this.value)" style="font-size:12.5px"></td>
+        <td style="padding:3px 4px"><input type="date" value="${f.validite || ""}" onchange="majFormation('${a.id}','${f.id}','validite',this.value)" style="font-size:12.5px;color:${f.validite ? coul : "#475569"}" title="Laisser vide si sans expiration"></td>
+        <td style="padding:3px 4px"><input value="${ech(f.note || "")}" placeholder="référence du justificatif..." onchange="majFormation('${a.id}','${f.id}','note',this.value)" style="font-size:12.5px;width:150px;border:1px solid #cbd5e1;border-radius:5px;padding:3px 5px"></td>
+        <td class="centre"><button class="btn-suppr" onclick="supprimerFormation('${a.id}','${f.id}')">✕</button></td>
+      </tr>`;
+      }).join("")}</tbody>
+    </table>` : `<p class="aide">Aucune formation enregistrée (PSC1, PPMS, formations académiques...). Une alerte signale les validités qui expirent.</p>`}
+  </div>
+  <div class="carte" style="margin-bottom:14px">
+    <h3 style="font-size:15px;margin-bottom:8px">📄 Documents — ${ech(a.nom)}</h3>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end">
+      <button class="btn" onclick="imprimerDoc('attestation','${a.id}')">Attestation d'heures</button>
+      <button class="btn" onclick="imprimerDoc('etat','${a.id}')">État de service</button>
+      <button class="btn" onclick="imprimerDoc('bilan','${a.id}')">Fiche bilan complète</button>
+      <span style="border-left:1px solid #e2e8f0;height:28px"></span>
+      <label style="font-size:11.5px;color:#475569">Entretien le<br><input type="date" id="conv-date" style="font-size:12.5px"></label>
+      <label style="font-size:11.5px;color:#475569">à<br><input type="time" id="conv-heure" value="10:00" style="font-size:12.5px"></label>
+      <label style="font-size:11.5px;color:#475569">Lieu<br><input id="conv-lieu" value="Bureau du CPE" style="font-size:12.5px;width:130px;border:1px solid #cbd5e1;border-radius:5px;padding:3px 5px"></label>
+      <button class="btn btn-bleu" onclick="imprimerDoc('convocation','${a.id}')">Convocation entretien</button>
+    </div>
+    <p class="aide" style="margin-top:6px">Chaque document s'ouvre dans la fenêtre d'impression : choisissez « Enregistrer au format PDF ».</p>
+  </div>
+  <div class="carte">
+    <h3 style="font-size:15px;margin-bottom:8px">Observations datées</h3>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <input id="obs-texte" placeholder="entretien informel, changement d'horaires, point de vigilance..." style="flex:1;font-size:13px;border:1px solid #cbd5e1;border-radius:6px;padding:6px 8px">
+      <button class="btn btn-bleu" onclick="ajouterObs('${a.id}')">Ajouter</button>
+    </div>
+    ${obs || `<p class="aide">Aucune observation.</p>`}
+  </div>`;
+}
+
+// ---------- Réglages ----------
+function majReglage(champ, val) { if (val) etat.reglages[champ] = val; sauver(); rendre(); }
+function majZone(z) { etat.reglages.zone = z; sauver(); rendre(); }
+function majAlternance(champ, val) {
+  if (!etat.reglages.alternance) etat.reglages.alternance = {};
+  etat.reglages.alternance[champ] = val;
+  normaliserAlternance();
+  sauver(); rendre();
+}
+function rechargerVacances() {
+  if (!confirm(`Remplacer la liste des vacances par celles de la zone ${etat.reglages.zone} (2026-2027) ?`)) return;
+  etat.reglages.vacances = vacancesZone(etat.reglages.zone);
+  sauver(); rendre();
+}
+function ajouterVacance() {
+  etat.reglages.vacances.push({ id: genId("v"), nom: "Période", du: etat.reglages.debutAnnee, au: etat.reglages.debutAnnee });
+  sauver(); rendre();
+}
+function majVacance(id, champ, val) {
+  const v = etat.reglages.vacances.find((x) => x.id === id);
+  if (v && val) { v[champ] = val; sauver(); rendre(); }
+}
+function supprimerVacance(id) {
+  etat.reglages.vacances = etat.reglages.vacances.filter((v) => v.id !== id);
+  sauver(); rendre();
+}
+
+function ajouterAnneesIso(iso, n) {
+  if (!iso) return "";
+  const d = new Date(iso + "T12:00:00");
+  d.setFullYear(d.getFullYear() + n);
+  return isoLocal(d);
+}
+function horodatageFichier(d = new Date()) {
+  return isoLocal(d).replace(/-/g, "") + "-" + String(d.getHours()).padStart(2, "0") + String(d.getMinutes()).padStart(2, "0");
+}
+function anneeScolaireLibelle(r = etat.reglages) {
+  return (r.debutAnnee || "").slice(0, 4) + "-" + (r.finAnnee || "").slice(0, 4);
+}
+function preparerEtatAnneeSuivante() {
+  const ancien = JSON.parse(JSON.stringify(etat));
+  const debutAnnee = ajouterAnneesIso(ancien.reglages.debutAnnee, 1);
+  const finAnnee = ajouterAnneesIso(ancien.reglages.finAnnee, 1);
+  const semaines = (ancien.semaines && ancien.semaines.length ? ancien.semaines : [{ id: "s1", nom: "Semaine A" }])
+    .map((s) => ({ id: s.id, nom: s.nom, planning: {} }));
+  const semaineActiveId = semaines.find((s) => s.id === ancien.semaineActive)?.id || semaines[0]?.id || "s1";
+  const planningActif = semaines.find((s) => s.id === semaineActiveId)?.planning || {};
+  const reglages = {
+    ...ancien.reglages,
+    debutAnnee,
+    finAnnee,
+    vacances: (ancien.reglages.vacances || []).map((v) => ({
+      ...v,
+      id: genId("v"),
+      du: ajouterAnneesIso(v.du, 1),
+      au: ajouterAnneesIso(v.au, 1),
+    })),
+  };
+  return {
+    ...ancien,
+    titre: ancien.titre,
+    aeds: ancien.aeds.map((a) => ({
+      ...a,
+      contratDebut: debutAnnee,
+      contratFin: a.contratType === "CDI" ? "" : finAnnee,
+    })),
+    postes: ancien.postes,
+    planning: planningActif,
+    semaines,
+    semaineActive: semaineActiveId,
+    absences: {},
+    indispos: {},
+    absencesAn: [],
+    heuresJournal: [],
+    besoins: [],
+    effectifs: JSON.parse(JSON.stringify(EFFECTIFS_DEFAUT)),
+    reglages,
+    dernierExport: null,
+  };
+}
+function cloturerAnnee() {
+  const annee = anneeScolaireLibelle();
+  if (!confirm(`Clôturer l'année scolaire ${annee} ?\n\nUne archive JSON complète sera téléchargée, puis l'application repartira sur l'année suivante avec l'équipe et les postes conservés.`)) return;
+  const maintenant = new Date();
+  const archive = {
+    ...JSON.parse(JSON.stringify(etat)),
+    archiveMeta: {
+      type: "cloture-annee-edt-aed",
+      creeLe: maintenant.toISOString(),
+      anneeScolaire: annee,
+    },
+  };
+  telechargerJson(archive, `edt-aed-archive-${annee}-${horodatageFichier(maintenant)}.json`);
+  etat = preparerEtatAnneeSuivante();
+  normaliser();
+  aedActif = etat.aeds[0]?.id;
+  posteActif = etat.postes[0]?.id;
+  vue = "reglages";
+  pileAnnuler = []; pileRefaire = [];
+  sauver(); rendre();
+  alert("Année clôturée. Les vacances ont été décalées d'un an automatiquement : pensez à les vérifier dans Réglages.");
+}
+
+function htmlReglages() {
+  const r = etat.reglages;
+  normaliserAlternance();
+  const alt = r.alternance;
+  const optionsSemaines = (sel) => etat.semaines.map((s) => `<option value="${s.id}"${s.id === sel ? " selected" : ""}>${ech(s.nom)}</option>`).join("");
+  const semAuj = semainePourDate(aujourdhuiIso());
+  const numAuj = numeroSemaineIso(aujourdhuiIso());
+  const vacs = r.vacances.slice().sort((a, b) => a.du.localeCompare(b.du)).map((v) => `<tr>
+    <td style="padding:3px 4px"><input value="${ech(v.nom)}" onchange="majVacance('${v.id}','nom',this.value)" style="font-size:12.5px;width:150px"></td>
+    <td style="padding:3px 4px"><input type="date" value="${v.du}" onchange="majVacance('${v.id}','du',this.value)" style="font-size:12.5px"></td>
+    <td style="padding:3px 4px"><input type="date" value="${v.au}" onchange="majVacance('${v.id}','au',this.value)" style="font-size:12.5px"></td>
+    <td style="text-align:center"><button class="btn-suppr" onclick="supprimerVacance('${v.id}')">✕</button></td>
+  </tr>`).join("");
+  const feries = feriesAnneeScolaire().map(([iso, nom]) =>
+    `<span style="display:inline-block;background:#f1f5f9;border-radius:5px;padding:2px 8px;margin:2px;font-size:12px"${estVacancesIso(iso) ? ' title="Pendant les vacances"' : ""}>${frDate(iso)} · ${nom}${estVacancesIso(iso) ? " 🏖" : ""}</span>`).join("");
+  const dernierExport = etat.dernierExport ? new Date(etat.dernierExport).toLocaleDateString("fr-FR") : "jamais";
+  const statutFichier = !("showSaveFilePicker" in window) ? "non disponible dans ce navigateur" :
+    fichierAutoPret ? "actif" : fichierAutoHandle ? "à réautoriser" : "non lié";
+  const prochaineAnnee = frDate(ajouterAnneesIso(r.debutAnnee, 1)) + " → " + frDate(ajouterAnneesIso(r.finAnnee, 1));
+  return `<div class="carte" style="margin-bottom:14px">
+    <h3 style="font-size:15px;margin-bottom:8px">Année scolaire</h3>
+    <div style="display:flex;flex-wrap:wrap;gap:18px;align-items:center">
+      <label style="font-size:13px;color:#475569">Premier jour : <input type="date" value="${r.debutAnnee}" onchange="majReglage('debutAnnee',this.value)" style="font-size:13px"></label>
+      <label style="font-size:13px;color:#475569">Dernier jour : <input type="date" value="${r.finAnnee}" onchange="majReglage('finAnnee',this.value)" style="font-size:13px"></label>
+    </div>
+  </div>
+  <div class="carte" style="margin-bottom:14px">
+    <h3 style="font-size:15px;margin-bottom:8px">Alternance A/B</h3>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+      <label style="font-size:13px;color:#475569">Calcul absences/bilan :
+        <select onchange="majAlternance('mode',this.value)" style="font-size:13px">
+          <option value="active"${alt.mode === "active" ? " selected" : ""}>Semaine affichée</option>
+          <option value="paireImpaire"${alt.mode === "paireImpaire" ? " selected" : ""}>Automatique paires/impaires</option>
+        </select>
+      </label>
+      <label style="font-size:13px;color:#475569">Semaines paires :
+        <select onchange="majAlternance('semainePaire',this.value)" style="font-size:13px"${alt.mode !== "paireImpaire" ? " disabled" : ""}>${optionsSemaines(alt.semainePaire)}</select>
+      </label>
+      <label style="font-size:13px;color:#475569">Semaines impaires :
+        <select onchange="majAlternance('semaineImpaire',this.value)" style="font-size:13px"${alt.mode !== "paireImpaire" ? " disabled" : ""}>${optionsSemaines(alt.semaineImpaire)}</select>
+      </label>
+    </div>
+    <p class="aide" style="margin-top:8px">En mode automatique, les absences datées et le bilan annuel utilisent la semaine type correspondant à la semaine ISO de chaque date. Aujourd'hui : semaine ${numAuj} (${numAuj % 2 === 0 ? "paire" : "impaire"}) → <b>${semAuj ? ech(semAuj.nom) : "aucune semaine"}</b>. La semaine affichée reste celle que vous éditez avec le sélecteur du haut.</p>
+  </div>
+  <div class="carte" style="margin-bottom:14px">
+    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:8px">
+      <h3 style="font-size:15px">Vacances scolaires</h3>
+      <label style="font-size:13px;color:#475569">Zone :
+        <select onchange="majZone(this.value)" style="font-size:13px">${["A", "B", "C"].map((z) => `<option${z === r.zone ? " selected" : ""}>${z}</option>`).join("")}</select>
+      </label>
+      <button class="btn" style="padding:4px 10px;font-size:12px" onclick="rechargerVacances()">Recharger la zone ${r.zone}</button>
+      <button class="btn-plus" onclick="ajouterVacance()" title="Ajouter une période">＋</button>
+    </div>
+    <table style="max-width:560px">
+      <thead><tr><th style="text-align:left">Période</th><th>Premier jour</th><th>Dernier jour</th><th></th></tr></thead>
+      <tbody>${vacs}</tbody>
+    </table>
+  </div>
+  <div class="carte" style="margin-bottom:14px">
+    <h3 style="font-size:15px;margin-bottom:6px">Jours fériés (calculés automatiquement)</h3>
+    ${feries || "<p class='aide'>Aucun férié dans la période définie.</p>"}
+  </div>
+  <div class="carte" style="margin-bottom:14px;border-color:#bfdbfe">
+    <h3 style="font-size:15px;margin-bottom:6px">Clôture d'année</h3>
+    <p class="aide" style="margin-bottom:8px">Télécharge une archive JSON complète de l'année ${anneeScolaireLibelle()} puis prépare ${prochaineAnnee}. Conservé : équipe, contacts, quotités, postes, semaines A/B et réglages de structure. Remis à zéro : plannings, absences, indispos, besoins, journal et effectifs étude.</p>
+    <button class="btn btn-bleu" onclick="cloturerAnnee()">Clôturer et repartir propre</button>
+  </div>
+  <div class="carte">
+    <h3 style="font-size:15px;margin-bottom:6px">Sauvegarde</h3>
+    <p class="aide" style="margin-bottom:8px">Les données restent aussi dans ce navigateur, mais vous pouvez lier un fichier JSON : chaque modification y sera écrite automatiquement après autorisation. Fichier auto : <b>${statutFichier}</b>. Dernier export manuel : <b>${dernierExport}</b>.</p>
+    <button class="btn" onclick="lierFichierAuto()">🔗 Lier / réautoriser un fichier</button>
+    <button class="btn" onclick="exporter()">💾 Exporter maintenant</button>
+  </div>
+  <div class="carte" style="margin-top:14px">
+    <h3 style="font-size:15px;margin-bottom:6px">Journal d'audit</h3>
+    <p class="aide" style="margin-bottom:8px">Trace locale des actions importantes (300 dernières) — utile pour retrouver l'origine d'une modification.</p>
+    ${(etat.audit || []).length ? `<div style="max-height:260px;overflow-y:auto">${etat.audit.slice().reverse().slice(0, 100).map((e) =>
+      `<div style="font-size:12px;padding:3px 0;border-bottom:1px solid #f1f5f9"><span style="color:#94a3b8">${new Date(e.t).toLocaleString("fr-FR")}</span> — ${ech(e.msg)}</div>`).join("")}</div>` : `<p class="aide">Aucune action tracée pour le moment.</p>`}
+  </div>`;
+}
+
+// ---------- Onglet Absences ----------
+function htmlAbsences() {
+  const lignes = etat.absencesAn.slice().sort((a, b) => b.du.localeCompare(a.du)).map((abs) => {
+    const aed = etat.aeds.find((x) => x.id === abs.aedId);
+    const jours = joursDecomptes(abs);
+    const heures = jours.reduce((t, j) => t + j.heures, 0);
+    const semaines = [...new Set(jours.map((j) => j.semaine).filter(Boolean))];
+    return `<tr>
+      <td class="centre" style="font-weight:600">${aed ? ech(aed.nom) : "?"}</td>
+      <td class="centre">${frDate(abs.du)}${abs.au !== abs.du ? " → " + frDate(abs.au) : ""}${etat.reglages.alternance?.mode === "paireImpaire" && semaines.length ? `<div style="font-size:11px;color:#64748b">${semaines.map(ech).join(" / ")}</div>` : ""}</td>
+      <td class="centre">${ech(abs.motif)}${abs.note ? `<div style="font-size:11px;color:#94a3b8">${ech(abs.note)}</div>` : ""}</td>
+      <td class="centre">${jours.length}</td>
+      <td class="centre" style="font-weight:600;color:${heures && abs.rattraper ? "#e11d48" : "#94a3b8"}">${fmtH(heures)}</td>
+      <td class="centre"><input type="checkbox"${abs.rattraper ? " checked" : ""} onchange="majRattraper('${abs.id}',this.checked)" title="Cette absence crée-t-elle une dette d'heures ?"></td>
+      <td class="centre"><select onchange="majStatutAbsence('${abs.id}',this.value)" style="font-size:12px;font-weight:600;color:${COULEUR_STATUT[abs.statut] || "#475569"};border:1px solid #e2e8f0;border-radius:5px;padding:2px 3px">
+        ${STATUTS_ABSENCE.map((s) => `<option${s === abs.statut ? " selected" : ""}>${s}</option>`).join("")}</select></td>
+      <td class="centre"><button class="btn-suppr" onclick="supprimerAbsence('${abs.id}')">✕</button></td>
+    </tr>`;
+  }).join("");
+  const recap = etat.aeds.map((a) => {
+    const absAed = etat.absencesAn.filter((x) => x.aedId === a.id);
+    if (!absAed.length) return "";
+    let jours = 0, heures = 0, aRattraper = 0;
+    for (const abs of absAed) {
+      const js = joursDecomptes(abs);
+      const h = js.reduce((t, j) => t + j.heures, 0);
+      jours += js.length; heures += h;
+      if (abs.rattraper) aRattraper += h;
+    }
+    return `<tr><td class="centre" style="font-weight:600;text-align:left">${ech(a.nom)}</td>
+      <td class="centre">${absAed.length}</td><td class="centre">${jours}</td>
+      <td class="centre">${fmtH(heures)}</td>
+      <td class="centre" style="font-weight:600;color:${aRattraper ? "#e11d48" : "#059669"}">${fmtH(aRattraper)}</td></tr>`;
+  }).join("");
+  return `<div class="carte" style="margin-bottom:14px">
+    <h3 style="font-size:15px;margin-bottom:8px">Déclarer une absence</h3>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">
+      <label style="font-size:12px;color:#475569">AED<br><select id="abs-aed" style="font-size:13px">${etat.aeds.map((a) => `<option value="${a.id}">${ech(a.nom)}</option>`).join("")}</select></label>
+      <label style="font-size:12px;color:#475569">Du<br><input type="date" id="abs-du" min="${etat.reglages.debutAnnee}" max="${etat.reglages.finAnnee}" style="font-size:13px"></label>
+      <label style="font-size:12px;color:#475569">Au (inclus)<br><input type="date" id="abs-au" min="${etat.reglages.debutAnnee}" max="${etat.reglages.finAnnee}" style="font-size:13px"></label>
+      <label style="font-size:12px;color:#475569">Motif<br><select id="abs-motif" style="font-size:13px" onchange="majDefautRattrapage(this.value)">${MOTIFS_ABSENCE.map((m) => `<option>${m}</option>`).join("")}</select></label>
+      <label style="font-size:12px;color:#475569">Note<br><input id="abs-note" placeholder="facultatif" style="font-size:13px;width:160px;border:1px solid #cbd5e1;border-radius:6px;padding:4px 6px"></label>
+      <label style="font-size:12px;color:#475569;padding-bottom:4px"><input type="checkbox" id="abs-rattraper"> à rattraper</label>
+      <button class="btn btn-bleu" onclick="ajouterAbsence()">Ajouter</button>
+    </div>
+    <p class="aide" style="margin-top:8px">Les jours et heures décomptés excluent week-ends, fériés et vacances (réglables dans ⚙ Réglages).
+    Les heures perdues = heures du planning type applicable à la date (semaine affichée, ou alternance A/B si activée dans ⚙ Réglages).
+    <b>Maladie, formation, grève et garde d'enfant ne créent pas de dette d'heures</b> ; les convenances personnelles sont à rattraper (case ajustable au cas par cas).</p>
+  </div>
+  <div class="carte" style="margin-bottom:14px">
+    <h3 style="font-size:15px;margin-bottom:8px">Registre ${etat.absencesAn.length ? `(${etat.absencesAn.length})` : ""}</h3>
+    ${etat.absencesAn.length ? `<table>
+      <thead><tr><th>AED</th><th>Dates</th><th>Motif</th><th>Jours décomptés</th><th>Heures perdues</th><th>À rattraper</th><th>Statut</th><th></th></tr></thead>
+      <tbody>${lignes}</tbody>
+    </table>` : `<p class="aide">Aucune absence enregistrée.</p>`}
+  </div>
+  ${recap.trim() ? `<div class="carte">
+    <h3 style="font-size:15px;margin-bottom:8px">Récapitulatif annuel par AED</h3>
+    <table style="max-width:520px">
+      <thead><tr><th style="text-align:left">AED</th><th>Absences</th><th>Jours</th><th>Heures perdues</th><th>Dont à rattraper</th></tr></thead>
+      <tbody>${recap}</tbody>
+    </table>
+  </div>` : ""}`;
+}
+
+// ---------- Remplacements ----------
+function calculRemplacements() {
+  const res = [];
+  for (const aed of etat.aeds) {
+    for (const jour of JOURS) {
+      if (!estAbsent(aed.id, jour)) continue;
+      for (const b of blocs(aed.id, jour)) {
+        const candidats = etat.aeds
+          .filter((c) => {
+            if (c.id === aed.id || estAbsent(c.id, jour)) return false;
+            for (let cr = b.debut; cr < b.fin; cr++)
+              if ((etat.planning[c.id] || {})[jour]?.[cr] || estIndispo(c.id, jour, cr)) return false;
+            return true;
+          })
+          .map((c) => ({ aed: c, nom: c.nom, marge: c.quotite - heuresSemaine(c.id) }))
+          .sort((x, y) => y.marge - x.marge);
+        res.push({ nom: aed.nom, jour, b, poste: posteParId(b.pid), candidats });
+      }
+    }
+  }
+  return res;
+}
+function htmlRemplacements() {
+  const remp = calculRemplacements();
+  if (!remp.length) return "";
+  const lignes = remp.map((r) => {
+    const cands = r.candidats.length
+      ? `<div class="liste-candidats">${r.candidats.slice(0, 4).map((c) => `<span class="candidat"><b>${ech(c.nom)}</b> (${c.marge >= 0 ? "marge " + fmtH(c.marge) : "déjà +" + fmtH(-c.marge)})${contactCourt(c.aed)}</span>`).join("")}</div>`
+      : `<span style="color:#e11d48;font-weight:600">aucun AED libre</span>`;
+    return `<tr>
+      <td class="centre" style="font-weight:600">${r.jour}</td>
+      <td class="centre">${ech(r.nom)}</td>
+      <td class="centre" style="white-space:nowrap"><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${r.poste ? COULEURS[r.poste.couleur].fond : "#ccc"}"></i>
+        ${r.poste ? ech(r.poste.nom) : "?"} · ${labelHeure(r.b.debut)}–${labelHeure(r.b.fin)}</td>
+      <td style="font-size:12px;padding:5px 8px;text-align:left">${cands}</td>
+    </tr>`;
+  }).join("");
+  return `<div class="carte" style="margin-bottom:14px;border-color:#fecdd3">
+    <h3 style="font-size:15px;margin-bottom:6px">🔄 Remplacements à prévoir</h3>
+    <p class="aide" style="margin:0 0 8px">Créneaux laissés vacants par les AED marqués absents, avec les AED libres à ce moment-là (classés par marge d'heures disponible sous leur quotité).</p>
+    <table>
+      <thead><tr><th>Jour</th><th>Absent</th><th>Créneau à couvrir</th><th style="text-align:left">Remplaçants possibles</th></tr></thead>
+      <tbody>${lignes}</tbody>
+    </table>
+  </div>`;
+}
+
+function contexteMaintenant(date = new Date()) {
+  const iso = isoLocal(date);
+  const idxJour = (date.getDay() + 6) % 7;
+  if (idxJour >= 5) return { ok: false, iso, message: "Week-end : aucun créneau de service aujourd'hui." };
+  const minutes = date.getHours() * 60 + date.getMinutes();
+  const debut = H_DEBUT * 60, fin = H_FIN * 60;
+  if (minutes < debut || minutes >= fin) return { ok: false, iso, message: "Hors amplitude horaire de la grille." };
+  if (!dansAnnee(iso)) return { ok: false, iso, message: "Date hors année scolaire réglée dans l'application." };
+  if (estFerie(iso)) return { ok: false, iso, message: "Jour férié : aucun service ordinaire à couvrir." };
+  if (estVacancesIso(iso)) return { ok: false, iso, message: "Vacances scolaires : aucun service ordinaire à couvrir." };
+  return { ok: true, iso, jour: JOURS[idxJour], cr: Math.floor((minutes - debut) / PAS) };
+}
+
+function analyserLibresMaintenant(date = new Date()) {
+  const ctx = contexteMaintenant(date);
+  if (!ctx.ok) return ctx;
+  const planning = planningPourDate(ctx.iso);
+  const libres = [], occupes = [], absents = [], indispos = [], horsContrat = [];
+  for (const aed of etat.aeds) {
+    if (!dateDansContrat(aed, ctx.iso)) { horsContrat.push(aed); continue; }
+    if (estAbsentAlaDate(aed.id, ctx.jour, ctx.iso)) { absents.push(aed); continue; }
+    if (estIndispo(aed.id, ctx.jour, ctx.cr)) { indispos.push(aed); continue; }
+    const pid = (planning[aed.id] || {})[ctx.jour]?.[ctx.cr];
+    if (pid) occupes.push({ aed, poste: posteParId(pid) });
+    else libres.push({ aed, marge: aed.quotite - heuresSemaine(aed.id) });
+  }
+  libres.sort((a, b) => b.marge - a.marge || a.aed.nom.localeCompare(b.aed.nom));
+  return { ...ctx, semaine: nomSemainePourDate(ctx.iso), libres, occupes, absents, indispos, horsContrat };
+}
+
+function htmlQuiEstLibreMaintenant(date = new Date()) {
+  const r = analyserLibresMaintenant(date);
+  const entete = `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px">
+    <h3 style="font-size:15px">Qui est libre maintenant ?</h3>
+    <button class="btn" style="padding:4px 10px;font-size:12px" onclick="rendre()">Actualiser</button>
+  </div>`;
+  if (!r.ok) {
+    return `<div class="carte" style="margin-bottom:14px;border-color:#bfdbfe">
+      ${entete}
+      <p class="aide" style="margin:0">${frDate(r.iso)} · ${r.message}</p>
+    </div>`;
+  }
+  const cartes = r.libres.length
+    ? `<div class="liste-candidats">${r.libres.map((c) => `<span class="candidat"><b>${ech(c.aed.nom)}</b> · ${c.marge >= 0 ? "marge " + fmtH(c.marge) : "déjà +" + fmtH(-c.marge)}${contactCourt(c.aed)}</span>`).join("")}</div>`
+    : `<p style="font-size:13px;color:#e11d48;font-weight:700;margin:0">Aucun AED libre sur ce créneau.</p>`;
+  const indispoTxt = [
+    r.occupes.length ? `${r.occupes.length} en service` : "",
+    r.absents.length ? `${r.absents.length} absent(s)` : "",
+    r.indispos.length ? `${r.indispos.length} indisponible(s)` : "",
+    r.horsContrat.length ? `${r.horsContrat.length} hors contrat` : "",
+  ].filter(Boolean).join(" · ");
+  const detailsOccupes = r.occupes.length
+    ? `<div style="margin-top:8px;font-size:11px;color:#64748b">En service : ${r.occupes.map((o) => `${ech(o.aed.nom)}${o.poste ? " (" + ech(o.poste.nom) + ")" : ""}`).join(", ")}</div>`
+    : "";
+  return `<div class="carte" style="margin-bottom:14px;border-color:#bfdbfe">
+    ${entete}
+    <p class="aide" style="margin:0 0 8px">${frDate(r.iso)} · ${r.jour} · ${labelHeure(r.cr)}–${labelHeure(r.cr + 1)} · ${ech(r.semaine || semaineActive()?.nom || "")}${indispoTxt ? " · " + indispoTxt : ""}</p>
+    ${cartes}
+    ${detailsOccupes}
+  </div>`;
+}
+
+// ---------- Besoins minimum par poste ----------
+function ajouterBesoin() {
+  etat.besoins.push({ id: genId("b"), posteId: etat.postes[0]?.id, jour: "Tous", debut: "07:30", fin: "08:30", n: 1 });
+  sauver(); rendre();
+}
+function majBesoin(id, champ, val) {
+  const b = etat.besoins.find((x) => x.id === id);
+  if (!b) return;
+  b[champ] = champ === "n" ? Math.max(1, parseInt(val, 10) || 1) : val;
+  sauver(); rendre();
+}
+function supprimerBesoin(id) { etat.besoins = etat.besoins.filter((b) => b.id !== id); sauver(); rendre(); }
+function minPoste(jour, posteId, crA, crB) {
+  let mn = Infinity;
+  for (let cr = crA; cr < crB; cr++) {
+    const c = etat.aeds.filter((a) => !estAbsent(a.id, jour) && (etat.planning[a.id] || {})[jour]?.[cr] === posteId).length;
+    mn = Math.min(mn, c);
+  }
+  return crB > crA ? mn : 0;
+}
+function htmlBesoins() {
+  const lignes = etat.besoins.map((b) => {
+    const crA = heureVersCr(b.debut), crB = heureVersCr(b.fin);
+    const jours = b.jour === "Tous" ? JOURS : [b.jour];
+    const couverture = JOURS.map((j) => {
+      if (!jours.includes(j)) return `<td class="centre" style="color:#cbd5e1">·</td>`;
+      const m = crB > crA ? minPoste(j, b.posteId, crA, crB) : 0;
+      const ok = m >= b.n;
+      return `<td class="centre" style="font-weight:600;background:${ok ? "#dcfce7" : "#fee2e2"};color:${ok ? "#166534" : "#b91c1c"}">${m}/${b.n}</td>`;
+    }).join("");
+    return `<tr>
+      <td style="padding:3px 4px"><select onchange="majBesoin('${b.id}','posteId',this.value)" style="font-size:12px;max-width:130px">
+        ${etat.postes.map((p) => `<option value="${p.id}"${p.id === b.posteId ? " selected" : ""}>${ech(p.nom)}</option>`).join("")}</select></td>
+      <td style="padding:3px 4px"><select onchange="majBesoin('${b.id}','jour',this.value)" style="font-size:12px">
+        ${["Tous", ...JOURS].map((j) => `<option${j === b.jour ? " selected" : ""}>${j}</option>`).join("")}</select></td>
+      <td style="padding:3px 4px"><input type="time" step="300" min="07:30" max="18:30" value="${b.debut}" onchange="majBesoin('${b.id}','debut',this.value)" style="font-size:12px"></td>
+      <td style="padding:3px 4px"><input type="time" step="300" min="07:30" max="18:30" value="${b.fin}" onchange="majBesoin('${b.id}','fin',this.value)" style="font-size:12px"></td>
+      <td style="padding:3px 4px"><input type="number" min="1" max="20" value="${b.n}" onchange="majBesoin('${b.id}','n',this.value)" style="width:44px;font-size:12px;text-align:center"></td>
+      ${couverture}
+      <td style="padding:3px 4px;text-align:center"><button class="btn-suppr" onclick="supprimerBesoin('${b.id}')">✕</button></td>
+    </tr>`;
+  }).join("");
+  return `<div class="carte" style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <h3 style="font-size:15px">Besoins minimum par poste</h3>
+      <button class="btn-plus" onclick="ajouterBesoin()" title="Ajouter un besoin">＋</button>
+    </div>
+    <p class="aide" style="margin:0 0 8px">Ex. « 2 AED au Portail de 7h30 à 8h00 ». Les cases indiquent AED posés / requis sur le pire moment de la plage (absents déduits). Vert = couvert, rouge = sous-couverture.</p>
+    ${etat.besoins.length ? `<table>
+      <thead><tr><th style="text-align:left">Poste</th><th>Jour</th><th>Début</th><th>Fin</th><th>Requis</th>${JOURS.map((j) => `<th>${j.slice(0, 3)}</th>`).join("")}<th></th></tr></thead>
+      <tbody>${lignes}</tbody>
+    </table>` : `<p class="aide">Aucun besoin défini — cliquez sur ＋ pour en ajouter un.</p>`}
+  </div>`;
+}
+
+// ---------- Équité ----------
+function htmlEquite() {
+  const lignes = etat.aeds.map((a) => {
+    const parPoste = {};
+    let total = 0;
+    for (const jour of JOURS)
+      for (const pid of Object.values((etat.planning[a.id] || {})[jour] || {})) {
+        parPoste[pid] = (parPoste[pid] || 0) + PAS / 60;
+        total += PAS / 60;
+      }
+    return `<tr><td class="centre" style="text-align:left;font-weight:500">${ech(a.nom)}</td>` +
+      etat.postes.map((p) => `<td class="centre">${parPoste[p.id] ? fmtH(parPoste[p.id]) : "<span style='color:#cbd5e1'>—</span>"}</td>`).join("") +
+      `<td class="centre" style="font-weight:600">${fmtH(total)}</td></tr>`;
+  }).join("");
+  return `<div class="carte" style="margin-bottom:14px">
+    <h3 style="font-size:15px;margin-bottom:6px">Équité — répartition des postes</h3>
+    <p class="aide" style="margin:0 0 8px">Heures hebdomadaires de chaque AED par poste (planning type, absences non déduites) : utile pour équilibrer les postes les moins prisés.</p>
+    <table>
+      <thead><tr><th style="text-align:left">AED</th>${etat.postes.map((p) => `<th><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${COULEURS[p.couleur].fond}"></i> ${ech(p.nom)}</th>`).join("")}<th>Total</th></tr></thead>
+      <tbody>${lignes}</tbody>
+    </table>
+  </div>`;
+}
+
+function majSemainesTrav(val) {
+  etat.semainesTravaillees = Math.min(52, Math.max(1, parseInt(val, 10) || 41));
+  sauver(); rendre();
+}
+
+function htmlSynthese() {
+  const sem = etat.semainesTravaillees;
+  const alternanceAuto = etat.reglages.alternance?.mode === "paireImpaire";
+  const lignesHeures = etat.aeds.map((a) => {
+    const total = heuresSemaine(a.id);
+    const ecart = total - a.quotite;
+    const b = alternanceAuto ? bilanAed(a) : null;
+    const annuel = alternanceAuto ? b.projection : total * sem;
+    const ecartAnnuel = alternanceAuto ? b.ecart : ecart * sem;
+    const couleurEcart = ecart > 0 ? "#e11d48" : ecart < 0 ? "#d97706" : "#059669";
+    const couleurAnnuel = ecartAnnuel < 0 ? "#e11d48" : ecartAnnuel > 0 ? "#d97706" : "#059669";
+    return `<tr><td class="centre" style="text-align:left;font-weight:500">${ech(a.nom)}</td>` +
+      JOURS.map((j) => `<td class="centre">${heuresJour(a.id, j) ? fmtH(heuresJour(a.id, j)) : "—"}</td>`).join("") +
+      `<td class="centre" style="font-weight:600">${fmtH(total)}</td>
+       <td class="centre" style="color:#64748b">${fmtH(a.quotite)}</td>
+       <td class="centre" style="font-weight:600;color:${couleurEcart}">${ecart > 0 ? "+" : ""}${fmtH(ecart)}</td>
+       <td class="centre" style="color:#475569">${fmtH(annuel)}</td>
+       <td class="centre" style="font-weight:600;color:${couleurAnnuel}">${ecartAnnuel > 0 ? "+" : ecartAnnuel < 0 ? "−" : ""}${fmtH(Math.abs(ecartAnnuel))}</td></tr>`;
+  }).join("");
+
+  let lignesPresence = "";
+  for (let cr = 0; cr < NB; cr++) {
+    lignesPresence += `<tr class="${classeCran(cr)}"><td class="heure-col">${labelColonne(cr)}</td>`;
+    for (const jour of JOURS) {
+      const presents = etat.aeds.filter((a) => !estAbsent(a.id, jour) && (etat.planning[a.id] || {})[jour]?.[cr]);
+      const n = presents.length;
+      const detail = presents.map((a) => a.nom + " (" + (posteParId(etat.planning[a.id][jour][cr])?.nom || "?") + ")").join("\n");
+      const teintes = ["#f8fafc", "#dbeafe", "#93c5fd", "#3b82f6"];
+      const teinte = teintes[Math.min(n, 3)];
+      // Badge : nombre d'AED par demi-heure (min–max si ça varie dans la demi-heure)
+      let badge = "";
+      if (cr % PAR_30 === 0) {
+        let mn = Infinity, mx = 0;
+        for (let k = cr; k < Math.min(cr + PAR_30, NB); k++) {
+          const c = etat.aeds.filter((a) => !estAbsent(a.id, jour) && (etat.planning[a.id] || {})[jour]?.[k]).length;
+          mn = Math.min(mn, c); mx = Math.max(mx, c);
+        }
+        badge = `<span class="badge-n${mx === 0 ? " zero" : ""}">${mn === mx ? mn : mn + "–" + mx}</span>`;
+      }
+      lignesPresence += `<td class="presence" style="background:${teinte}" data-jour="${jour}" data-cr="${cr}" data-n="${n}" title="${ech(detail) || "Personne"}">${badge}</td>`;
+    }
+    lignesPresence += "</tr>";
+  }
+
+  return `${htmlQuiEstLibreMaintenant()}${htmlRemplacements()}<div class="carte" style="margin-bottom:14px">
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-bottom:8px">
+      <h3 style="font-size:15px">Heures hebdomadaires et projection annuelle</h3>
+      ${alternanceAuto ? `<span style="font-size:12.5px;color:#64748b">Projection calendaire A/B active</span>` : `<label style="font-size:12.5px;color:#475569">Semaines travaillées :
+        <input type="number" min="1" max="52" value="${sem}" onchange="majSemainesTrav(this.value)" style="width:48px;font-size:12.5px;background:#f1f5f9;border:none;border-radius:5px;padding:3px 5px">
+      </label>`}
+    </div>
+    ${alternanceAuto ? `<p class="aide" style="margin:0 0 8px">Les colonnes de gauche décrivent la semaine affichée. La projection annuelle utilise l'alternance paire/impaire du calendrier, les contrats, les absences et le journal.</p>` : ""}
+    <table>
+      <thead><tr><th style="text-align:left">AED</th>${JOURS.map((j) => `<th>${j}</th>`).join("")}
+      <th>Total</th><th>Quotité</th><th>Écart</th><th>${alternanceAuto ? "Projection cal." : "Annuel (×" + sem + ")"}</th><th>${alternanceAuto ? "Écart cal." : "Écart annuel"}</th></tr></thead>
+      <tbody>${lignesHeures}</tbody>
+    </table>
+  </div>
+  ${htmlBesoins()}
+  ${htmlEquite()}
+  <div class="carte">
+    <h3 style="font-size:15px">Présence par créneau</h3>
+    <p class="aide" style="margin:2px 0 8px">Plus le bleu est foncé, plus il y a d'AED en service (survolez pour le détail). Le chiffre indique le nombre d'AED par demi-heure (min–max si ça varie) ; 0 en rouge = créneau sans personne.</p>
+    <table style="max-width:640px">
+      <thead><tr><th class="heure-col"></th>${JOURS.map((j) => `<th>${j}</th>`).join("")}</tr></thead>
+      <tbody>${lignesPresence}</tbody>
+    </table>
+  </div>`;
+}
+
+// ---------- Peinture (délégation) ----------
+let debutPeinture = null, dernierPeint = null;
+let deplacementBloc = null;
+let clicheAvant = null; // état avant le 1er clic (pour annuler la peinture d'un double-clic)
+let dernierClic = { t: 0, jour: null, cr: -1 };
+
+function blocAutour(aedId, jour, cr) {
+  const plan = (etat.planning[aedId] || {})[jour] || {};
+  const pid = plan[cr];
+  if (!pid) return null;
+  let a = cr, b = cr;
+  while (a > 0 && plan[a - 1] === pid) a--;
+  while (b < NB - 1 && plan[b + 1] === pid) b++;
+  return { jour, a, b: b + 1, pid };
+}
+function nettoyerCibleDeplacement() {
+  document.querySelectorAll("#grille td.deplacement-cible").forEach((td) => td.classList.remove("deplacement-cible"));
+}
+function marquerCibleDeplacement() {
+  nettoyerCibleDeplacement();
+  if (!deplacementBloc) return;
+  for (let cr = deplacementBloc.cibleA; cr < deplacementBloc.cibleB; cr++) {
+    const td = document.querySelector(`#grille td.creneau[data-jour="${deplacementBloc.cibleJour}"][data-cr="${cr}"]`);
+    if (td) td.classList.add("deplacement-cible");
+  }
+}
+function deplacementValide(ctx) {
+  for (let cr = ctx.cibleA; cr < ctx.cibleB; cr++) {
+    if (estIndispo(aedActif, ctx.cibleJour, cr)) return false;
+    const occupe = (etat.planning[aedActif] || {})[ctx.cibleJour]?.[cr];
+    const source = ctx.cibleJour === ctx.jourOrigine && cr >= ctx.a && cr < ctx.b;
+    if (occupe && !source) return false;
+  }
+  return true;
+}
+function terminerDeplacementBloc() {
+  if (!deplacementBloc) return;
+  const ctx = deplacementBloc;
+  nettoyerCibleDeplacement();
+  deplacementBloc = null;
+  const identique = ctx.cibleJour === ctx.jourOrigine && ctx.cibleA === ctx.a;
+  if (!ctx.deplace || identique) return;
+  if (!deplacementValide(ctx)) {
+    alert("Déplacement impossible : la destination contient déjà un bloc ou une indisponibilité.");
+    return;
+  }
+  pousserHistorique(ctx.snap);
+  const plan = (etat.planning[aedActif] || {})[ctx.jourOrigine];
+  if (plan) for (let cr = ctx.a; cr < ctx.b; cr++) delete plan[cr];
+  if (!etat.planning[aedActif]) etat.planning[aedActif] = {};
+  if (!etat.planning[aedActif][ctx.cibleJour]) etat.planning[aedActif][ctx.cibleJour] = {};
+  for (let cr = ctx.cibleA; cr < ctx.cibleB; cr++) etat.planning[aedActif][ctx.cibleJour][cr] = ctx.pid;
+  sauver(); rendre();
+}
+
+document.getElementById("contenu").addEventListener("mousedown", (e) => {
+  const td = e.target.closest("td.creneau");
+  if (!td) return;
+  e.preventDefault();
+  const jour = td.dataset.jour, cr = +td.dataset.cr;
+  const maintenant = Date.now();
+  const bloc = blocAutour(aedActif, jour, cr);
+  // Détection manuelle du double-clic : la grille étant redessinée à chaque clic,
+  // l'événement dblclick natif ne se déclenche pas de façon fiable.
+  if (maintenant - dernierClic.t < 450 && dernierClic.jour === jour && Math.abs(dernierClic.cr - cr) <= 2) {
+    if (clicheAvant) {
+      const s = JSON.parse(clicheAvant); // annule le coup de pinceau du 1er clic
+      etat.planning = s.p; etat.indispos = s.i; lierPlanning();
+      pileAnnuler.pop(); // retire l'entrée d'historique du 1er clic
+    }
+    peinture = false; debutPeinture = null; dernierPeint = null; deplacementBloc = null; nettoyerCibleDeplacement();
+    dernierClic = { t: 0, jour: null, cr: -1 };
+    sauver(); rendre();
+    ouvrirSaisie(jour, cr);
+    return;
+  }
+  dernierClic = { t: maintenant, jour, cr };
+  if (bloc && !gomme && !outilIndispo) {
+    clicheAvant = null;
+    const largeur = bloc.b - bloc.a;
+    const offset = cr - bloc.a;
+    deplacementBloc = {
+      ...bloc,
+      jourOrigine: bloc.jour,
+      largeur,
+      offset,
+      cibleJour: bloc.jour,
+      cibleA: bloc.a,
+      cibleB: bloc.b,
+      deplace: false,
+      snap: instantane(),
+    };
+    marquerCibleDeplacement();
+    return;
+  }
+  clicheAvant = instantane();
+  pousserHistorique(clicheAvant);
+  peinture = true;
+  debutPeinture = { jour, cr };
+  dernierPeint = { jour, cr };
+  poser(aedActif, jour, cr);
+});
+document.getElementById("contenu").addEventListener("mouseover", (e) => {
+  if (deplacementBloc) {
+    const td = e.target.closest("td.creneau");
+    if (!td) return;
+    const jour = td.dataset.jour, cr = +td.dataset.cr;
+    const a = Math.max(0, Math.min(NB - deplacementBloc.largeur, cr - deplacementBloc.offset));
+    deplacementBloc.cibleJour = jour;
+    deplacementBloc.cibleA = a;
+    deplacementBloc.cibleB = a + deplacementBloc.largeur;
+    deplacementBloc.deplace = deplacementBloc.deplace || jour !== deplacementBloc.jourOrigine || a !== deplacementBloc.a;
+    marquerCibleDeplacement();
+    return;
+  }
+  if (!peinture) return;
+  const td = e.target.closest("td.creneau");
+  if (!td) return;
+  const jour = td.dataset.jour, cr = +td.dataset.cr;
+  if (dernierPeint && dernierPeint.jour === jour)
+    poserPlage(aedActif, jour, dernierPeint.cr, cr); // comble les crans sautés
+  else
+    poser(aedActif, jour, cr);
+  dernierPeint = { jour, cr };
+});
+window.addEventListener("mouseup", () => {
+  if (deplacementBloc) terminerDeplacementBloc();
+  peinture = false; debutPeinture = null; dernierPeint = null;
+});
+
+// ---------- Infobulle horaire ----------
+const bulle = document.getElementById("infobulle");
+document.getElementById("contenu").addEventListener("mousemove", (e) => {
+  const td = e.target.closest("td.creneau, td.presence");
+  if (!td || td.dataset.cr === undefined) { bulle.style.display = "none"; return; }
+  const cr = +td.dataset.cr;
+  let texte;
+  if (deplacementBloc && td.classList.contains("creneau")) {
+    texte = `Déplacer · ${td.dataset.jour} · ${labelHeure(deplacementBloc.cibleA)} → ${labelHeure(deplacementBloc.cibleB)}  (${fmtH(deplacementBloc.largeur * PAS / 60)})`;
+  } else if (peinture && debutPeinture && td.dataset.jour === debutPeinture.jour && td.classList.contains("creneau")) {
+    const a = Math.min(debutPeinture.cr, cr), b = Math.max(debutPeinture.cr, cr);
+    texte = `${td.dataset.jour} · ${labelHeure(a)} → ${labelHeure(b + 1)}  (${fmtH((b - a + 1) * PAS / 60)})`;
+  } else if (td.classList.contains("presence")) {
+    texte = `${td.dataset.jour} · ${labelHeure(cr)} · ${td.dataset.n || 0} AED`;
+  } else {
+    const pid = (etat.planning[aedActif] || {})[td.dataset.jour]?.[cr];
+    const poste = pid ? posteParId(pid) : null;
+    texte = `${td.dataset.jour} · ${labelHeure(cr)}${poste ? " · " + poste.nom : ""}`;
+  }
+  bulle.textContent = texte;
+  bulle.style.display = "block";
+  bulle.style.left = (e.clientX + 14) + "px";
+  bulle.style.top = (e.clientY + 14) + "px";
+});
+document.getElementById("contenu").addEventListener("mouseleave", () => (bulle.style.display = "none"));
+
+// ---------- Saisie manuelle des horaires (double-clic) ----------
+let modalCtx = null;
+const crVersHeure = (cr) => {
+  const m = H_DEBUT * 60 + cr * PAS;
+  return String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+};
+const heureVersCr = (val) => {
+  const [h, m] = val.split(":").map(Number);
+  return Math.max(0, Math.min(NB, Math.round((h * 60 + m - H_DEBUT * 60) / PAS)));
+};
+
+function ouvrirSaisie(jour, cr) {
+  const plan = (etat.planning[aedActif] || {})[jour] || {};
+  const pid = plan[cr];
+  if (pid) {
+    // bloc existant : trouver son étendue
+    let a = cr, b = cr;
+    while (a > 0 && plan[a - 1] === pid) a--;
+    while (b < NB - 1 && plan[b + 1] === pid) b++;
+    ouvrirModal({ jour, a, b: b + 1, pid, edition: true });
+  } else {
+    // zone vide : création d'un bloc d'1h par défaut
+    ouvrirModal({ jour, a: cr, b: Math.min(cr + PAR_H, NB), pid: posteActif, edition: false });
+  }
+}
+
+function ouvrirModal(ctx) {
+  modalCtx = ctx;
+  document.getElementById("modal-titre").textContent =
+    (ctx.edition ? "Modifier le bloc — " : "Nouveau bloc — ") + (etat.aeds.find((a) => a.id === aedActif)?.nom || "");
+  document.getElementById("modal-jour").innerHTML =
+    JOURS.map((j) => `<option${j === ctx.jour ? " selected" : ""}>${j}</option>`).join("");
+  document.getElementById("modal-poste").innerHTML =
+    etat.postes.map((p) => `<option value="${p.id}"${p.id === ctx.pid ? " selected" : ""}>${ech(p.nom)}</option>`).join("");
+  document.getElementById("modal-debut").value = crVersHeure(ctx.a);
+  document.getElementById("modal-fin").value = crVersHeure(ctx.b);
+  document.getElementById("modal-erreur").textContent = "";
+  document.getElementById("modal-supprimer").style.display = ctx.edition ? "" : "none";
+  document.getElementById("voile").classList.add("ouvert");
+}
+function fermerModal() {
+  document.getElementById("voile").classList.remove("ouvert");
+  modalCtx = null;
+}
+function effacerPlage(jour, a, b) {
+  const plan = (etat.planning[aedActif] || {})[jour];
+  if (plan) for (let cr = a; cr < b; cr++) delete plan[cr];
+}
+function validerModal() {
+  if (!modalCtx) return;
+  const jour = document.getElementById("modal-jour").value;
+  const pid = document.getElementById("modal-poste").value;
+  const a = heureVersCr(document.getElementById("modal-debut").value || "");
+  const b = heureVersCr(document.getElementById("modal-fin").value || "");
+  if (!(b > a)) {
+    document.getElementById("modal-erreur").textContent = "L'heure de fin doit être après le début (entre 7h30 et 18h30).";
+    return;
+  }
+  pousserHistorique();
+  assurerDerogation();
+  if (modalCtx.edition) effacerPlage(modalCtx.jour, modalCtx.a, modalCtx.b);
+  if (!etat.planning[aedActif]) etat.planning[aedActif] = {};
+  if (!etat.planning[aedActif][jour]) etat.planning[aedActif][jour] = {};
+  for (let cr = a; cr < b; cr++)
+    if (!estIndispo(aedActif, jour, cr)) etat.planning[aedActif][jour][cr] = pid;
+  sauver(); rendre(); fermerModal();
+}
+document.getElementById("modal-supprimer").addEventListener("click", () => {
+  if (!modalCtx) return;
+  pousserHistorique();
+  assurerDerogation();
+  if (modalCtx.edition) effacerPlage(modalCtx.jour, modalCtx.a, modalCtx.b);
+  sauver(); rendre(); fermerModal();
+});
+document.getElementById("voile").addEventListener("mousedown", (e) => {
+  if (e.target.id === "voile") fermerModal();
+});
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") fermerModal();
+  if (e.key === "Enter" && document.getElementById("voile").classList.contains("ouvert")) validerModal();
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+    e.preventDefault();
+    e.shiftKey ? refaire() : annuler();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { e.preventDefault(); refaire(); }
+});
+
+document.getElementById("titre").addEventListener("input", (e) => {
+  etat.titre = e.target.value; sauver();
+});
+
+// ---------- Vision étude ----------
+function aedEtude(jour, crA, crB) {
+  // min et max d'AED affectés au poste étude sur la période
+  let mn = Infinity, mx = 0;
+  for (let cr = crA; cr < crB; cr++) {
+    const c = etat.aeds.filter((a) => !estAbsent(a.id, jour) && (etat.planning[a.id] || {})[jour]?.[cr] === etat.posteEtude).length;
+    mn = Math.min(mn, c); mx = Math.max(mx, c);
+  }
+  return crB > crA ? [mn, mx] : [0, 0];
+}
+function majEffectif(jour, i, val) {
+  etat.effectifs[jour][i] = val === "" ? "" : Math.max(0, parseInt(val, 10) || 0);
+  sauver(); rendre();
+}
+function majPosteEtude(id) { etat.posteEtude = id; sauver(); rendre(); }
+function majCapa(champ, val) { etat[champ] = Math.max(1, parseInt(val, 10) || 1); sauver(); rendre(); }
+
+// 1 AED pour la salle principale, puis 1 AED par salle annexe entamée
+function requisEtude(eff) {
+  if (!eff || eff <= 0) return 0;
+  if (eff <= etat.capaPrincipale) return 1;
+  return 1 + Math.ceil((eff - etat.capaPrincipale) / etat.capaAnnexe);
+}
+// capacité totale couverte par n AED (1 salle principale + annexes)
+const capaCouverte = (n) => n <= 0 ? 0 : etat.capaPrincipale + (n - 1) * etat.capaAnnexe;
+
+function htmlVisionEtude() {
+  const lignes = PERIODES_ETUDE.map(([deb, fin], i) => {
+    const crA = heureVersCr(deb), crB = heureVersCr(fin);
+    const label = deb.replace(/^0/, "").replace(":", "h") + " – " + fin.replace(/^0/, "").replace(":", "h");
+    const cellules = JOURS.map((jour) => {
+      const eff = etat.effectifs[jour][i];
+      const [mn, mx] = aedEtude(jour, crA, crB);
+      let fond = "#f8fafc", detail = "";
+      if (eff !== "" && eff > 0) {
+        const requis = requisEtude(eff);
+        fond = mn < requis ? "#fee2e2" : capaCouverte(mn) - eff <= 5 ? "#fef9c3" : "#dcfce7";
+        detail = `<div class="detail">AED étude : <b>${mn === mx ? mn : mn + "–" + mx}</b> · requis : <b>${requis}</b> (${capaCouverte(requis)} pl.)</div>`;
+      } else if (eff !== "" && eff === 0) {
+        detail = `<div class="detail" style="color:#94a3b8">—</div>`;
+      }
+      return `<td class="cell-etude" style="background:${fond}">
+        <input class="eff" type="number" min="0" value="${eff}" onchange="majEffectif('${jour}',${i},this.value)"> élèves
+        ${detail}
+      </td>`;
+    }).join("");
+    return `<tr><td class="centre" style="font-weight:600;white-space:nowrap">${label}</td>${cellules}</tr>`;
+  }).join("");
+
+  return `<div class="carte" style="margin-bottom:14px">
+    <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-bottom:10px">
+      <h3 style="font-size:15px">Couverture des études</h3>
+      <label style="font-size:12.5px;color:#475569">Poste étude :
+        <select onchange="majPosteEtude(this.value)" style="font-size:12.5px;background:#f1f5f9;border:none;border-radius:5px;padding:3px 5px">
+          ${etat.postes.map((p) => `<option value="${p.id}"${p.id === etat.posteEtude ? " selected" : ""}>${ech(p.nom)}</option>`).join("")}
+        </select>
+      </label>
+      <label style="font-size:12.5px;color:#475569">Salle principale :
+        <input type="number" min="1" max="500" value="${etat.capaPrincipale}" onchange="majCapa('capaPrincipale',this.value)" style="width:52px;font-size:12.5px;background:#f1f5f9;border:none;border-radius:5px;padding:3px 5px"> pl.
+      </label>
+      <label style="font-size:12.5px;color:#475569">Salles annexes :
+        <input type="number" min="1" max="200" value="${etat.capaAnnexe}" onchange="majCapa('capaAnnexe',this.value)" style="width:52px;font-size:12.5px;background:#f1f5f9;border:none;border-radius:5px;padding:3px 5px"> pl.
+      </label>
+    </div>
+    <p class="aide" style="margin:0 0 8px">Effectifs élèves issus de Pronote (max observé par période) — modifiables directement dans les cases.
+    « AED étude » = nombre d'AED positionnés sur le poste étude pendant la période (min–max si ça varie).
+    « Requis » = 1 AED pour la salle principale (${etat.capaPrincipale} places), puis 1 AED par salle annexe de ${etat.capaAnnexe} entamée.
+    Vert = couverture suffisante · Jaune = limite (moins de 5 places de marge) · Rouge = insuffisante.</p>
+    <table>
+      <thead><tr><th style="width:110px">Période</th>${JOURS.map((j) => `<th>${j}</th>`).join("")}</tr></thead>
+      <tbody>${lignes}</tbody>
+    </table>
+  </div>`;
+}
+
+// ---------- Impression / PDF ----------
+function blocsDansPlanning(planning, aedId, jour) {
+  const res = [];
+  let cour = null;
+  for (let cr = 0; cr <= NB; cr++) {
+    const pid = cr < NB ? (planning[aedId] || {})[jour]?.[cr] : null;
+    if (cour && pid !== cour.pid) { cour.fin = cr; res.push(cour); cour = null; }
+    if (pid && !cour) cour = { pid, debut: cr, fin: cr + 1 };
+  }
+  return res;
+}
+function blocs(aedId, jour) {
+  return blocsDansPlanning(etat.planning, aedId, jour);
+}
+
+const heuresJourPlanning = (planning, aedId, jour) =>
+  Object.keys((planning[aedId] || {})[jour] || {}).length * PAS / 60;
+const heuresSemainePlanning = (planning, aedId) =>
+  JOURS.reduce((t, j) => t + heuresJourPlanning(planning, aedId, j), 0);
+
+const initiales = (nom) =>
+  nom.trim().split(/\s+/).map((m) => m[0]).join("").toUpperCase().slice(0, 3) || "?";
+
+const dateJour = () => new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+
+const legendePostes = () =>
+  `<div class="legende">${etat.postes.map((p) =>
+    `<span><i style="background:${COULEURS[p.couleur].fond}"></i>${ech(p.nom)}</span>`).join("")}</div>`;
+
+const suffixeSemaine = () => semaineReelle
+  ? " — Semaine du " + frDate(semaineReelle)
+  : (etat.semaines.length > 1 ? " — " + semaineActive().nom : "");
+
+const cartoucheSignature = () => `
+  <div style="display:flex;gap:24px;margin-top:14px">
+    <div style="flex:1;border:1px solid #cbd5e1;border-radius:6px;padding:6px 8px;height:64px;font-size:9px;color:#475569">
+      Signature de l'AED<br>Fait le ______ / ______ / __________
+    </div>
+    <div style="flex:1;border:1px solid #cbd5e1;border-radius:6px;padding:6px 8px;height:64px;font-size:9px;color:#475569">
+      Signature du CPE<br>Fait le ______ / ______ / __________
+    </div>
+  </div>`;
+
+// Format 1 : une page par AED
+function htmlImpressionParAed() {
+  return etat.aeds.map((aed) => {
+    let lignes = "";
+    for (let cr = 0; cr < NB; cr++) {
+      lignes += `<tr class="${classeCran(cr)}"><td class="h-col">${labelColonne(cr)}</td>`;
+      for (const jour of JOURS) {
+        const pid = (etat.planning[aed.id] || {})[jour]?.[cr];
+        const poste = pid ? posteParId(pid) : null;
+        const prec = (etat.planning[aed.id] || {})[jour]?.[cr - 1];
+        const debut = pid && prec !== pid;
+        lignes += `<td class="cr" style="${poste ? "background:" + COULEURS[poste.couleur].fond : ""}">${
+          debut && poste ? `<span class="etiquette" style="color:${COULEURS[poste.couleur].texte}">${ech(poste.nom)}</span>` : ""
+        }</td>`;
+      }
+      lignes += "</tr>";
+    }
+    return `<div class="page">
+      <h1>${ech(etat.titre)}${suffixeSemaine()}</h1>
+      <h2 class="sous-titre">${ech(aed.nom)} — ${fmtH(heuresSemaine(aed.id))} / ${fmtH(aed.quotite)}</h2>
+      <table>
+        <thead><tr><th class="h-col"></th>${JOURS.map((j) =>
+          `<th>${j}<div style="font-weight:400;color:${estAbsent(aed.id, j) ? "#e11d48" : "#94a3b8"}">${estAbsent(aed.id, j) ? "ABSENT" : fmtH(heuresJour(aed.id, j))}</div></th>`).join("")}</tr></thead>
+        <tbody>${lignes}</tbody>
+      </table>
+      ${legendePostes()}
+      ${cartoucheSignature()}
+      <div class="pied">Édité le ${dateJour()}</div>
+    </div>`;
+  }).join("");
+}
+
+// Format 2 : planning général (blocs horaires par AED et par jour)
+function htmlImpressionGeneral() {
+  const lignes = etat.aeds.map((a) => {
+    const cellules = JOURS.map((jour) => {
+      if (estAbsent(a.id, jour)) return `<td class="bloc-jour" style="color:#e11d48;text-align:center;font-weight:700">ABSENT</td>`;
+      const bs = blocs(a.id, jour);
+      if (!bs.length) return `<td class="bloc-jour" style="color:#cbd5e1;text-align:center">—</td>`;
+      return `<td class="bloc-jour">${bs.map((b) => {
+        const p = posteParId(b.pid);
+        return `<span style="white-space:nowrap"><i style="display:inline-block;width:7px;height:7px;border-radius:2px;background:${p ? COULEURS[p.couleur].fond : "#ccc"}"></i> <b>${labelHeure(b.debut)}–${labelHeure(b.fin)}</b> ${p ? ech(p.nom) : "?"}</span>`;
+      }).join("<br>")}</td>`;
+    }).join("");
+    const total = heuresSemaine(a.id);
+    return `<tr>
+      <td class="bloc-jour" style="font-weight:600;white-space:nowrap">${ech(a.nom)}<br><span style="font-weight:400;color:#64748b">${fmtH(a.quotite)}</span></td>
+      ${cellules}
+      <td class="centre" style="font-weight:600;color:${total > a.quotite ? "#e11d48" : "#1e293b"}">${fmtH(total)}</td>
+    </tr>`;
+  }).join("");
+  return `<div class="page">
+    <h1>${ech(etat.titre)}${suffixeSemaine()}</h1>
+    <h2 class="sous-titre">Planning général de la semaine</h2>
+    <table>
+      <thead><tr><th style="text-align:left;width:90px">AED</th>${JOURS.map((j) => `<th>${j}</th>`).join("")}<th style="width:52px">Total</th></tr></thead>
+      <tbody>${lignes}</tbody>
+    </table>
+    ${legendePostes()}
+    <div class="pied">Édité le ${dateJour()}</div>
+  </div>`;
+}
+
+// Format 3 : grille superposée (tous les AED côte à côte par jour)
+function htmlImpressionSuperpose() {
+  const nA = etat.aeds.length;
+  let entete1 = `<th class="h-col" rowspan="2"></th>`;
+  let entete2 = "";
+  for (const jour of JOURS) {
+    entete1 += `<th colspan="${nA}">${jour}</th>`;
+    entete2 += etat.aeds.map((a) =>
+      `<th style="font-size:8px;padding:1px 2px" title="${ech(a.nom)}">${ech(initiales(a.nom))}</th>`).join("");
+  }
+  let lignes = "";
+  for (let cr = 0; cr < NB; cr++) {
+    lignes += `<tr><td class="h-col">${cr % 2 === 0 ? labelHeure(cr) : ""}</td>`;
+    for (const jour of JOURS) {
+      for (const a of etat.aeds) {
+        const pid = (etat.planning[a.id] || {})[jour]?.[cr];
+        const poste = pid ? posteParId(pid) : null;
+        lignes += `<td class="mini" style="${poste ? "background:" + COULEURS[poste.couleur].fond : ""}"></td>`;
+      }
+    }
+    lignes += "</tr>";
+  }
+  const legendeAeds = `<div class="legende">${etat.aeds.map((a) =>
+    `<span><b>${ech(initiales(a.nom))}</b> = ${ech(a.nom)}</span>`).join("")}</div>`;
+  return `<div class="page">
+    <h1>${ech(etat.titre)}${suffixeSemaine()}</h1>
+    <h2 class="sous-titre">Vue superposée — couverture de la semaine</h2>
+    <table>
+      <thead><tr>${entete1}</tr><tr>${entete2}</tr></thead>
+      <tbody>${lignes}</tbody>
+    </table>
+    ${legendeAeds}
+    ${legendePostes()}
+    <div class="pied">Édité le ${dateJour()}</div>
+  </div>`;
+}
+
+const signeH = (h) => h > 0 ? "+" + fmtH(h) : h < 0 ? "−" + fmtH(Math.abs(h)) : "0h00";
+
+function semainesReferenceFiche() {
+  const refs = [], vus = new Set();
+  const ajouter = (label, id) => {
+    const sem = etat.semaines.find((s) => s.id === id);
+    if (!sem || vus.has(sem.id)) return;
+    refs.push({ label, sem });
+    vus.add(sem.id);
+  };
+  const alt = etat.reglages.alternance || {};
+  if (alt.mode === "paireImpaire") {
+    ajouter("Semaines impaires", alt.semaineImpaire);
+    ajouter("Semaines paires", alt.semainePaire);
+  }
+  if (!refs.length) {
+    const sem = semaineActive() || etat.semaines[0];
+    if (sem) refs.push({ label: sem.nom, sem });
+  }
+  return refs;
+}
+
+function cellulePlanningFiche(planning, aedId, jour) {
+  const bs = blocsDansPlanning(planning, aedId, jour);
+  if (!bs.length) return `<span style="color:#cbd5e1">—</span>`;
+  return bs.map((b) => {
+    const p = posteParId(b.pid);
+    return `<span style="display:block;white-space:nowrap;margin:1px 0">
+      <i style="display:inline-block;width:6px;height:6px;border-radius:2px;background:${p ? COULEURS[p.couleur].fond : "#ccc"}"></i>
+      <b>${labelHeure(b.debut)}–${labelHeure(b.fin)}</b> ${p ? ech(p.nom) : "?"}
+    </span>`;
+  }).join("");
+}
+
+function htmlPlanningFiche(aed) {
+  const refs = semainesReferenceFiche();
+  const lignes = refs.map(({ label, sem }) => {
+    const planning = sem.planning || {};
+    return `<tr>
+      <td style="font-weight:700;white-space:nowrap">${ech(label)}${label !== sem.nom ? `<div style="font-weight:400;color:#64748b">${ech(sem.nom)}</div>` : ""}</td>
+      ${JOURS.map((j) => `<td>${cellulePlanningFiche(planning, aed.id, j)}</td>`).join("")}
+      <td class="centre" style="font-weight:700">${fmtH(heuresSemainePlanning(planning, aed.id))}</td>
+    </tr>`;
+  }).join("");
+  return `<h3>Planning de référence</h3>
+  <table class="fiche-table">
+    <thead><tr><th style="text-align:left;width:72px">Semaine</th>${JOURS.map((j) => `<th>${j.slice(0, 3)}</th>`).join("")}<th>Total</th></tr></thead>
+    <tbody>${lignes}</tbody>
+  </table>`;
+}
+
+function htmlAbsencesFiche(aed) {
+  const absences = etat.absencesAn
+    .filter((abs) => abs.aedId === aed.id && abs.au >= debutContrat(aed) && abs.du <= finContrat(aed))
+    .sort((a, b) => a.du.localeCompare(b.du));
+  if (!absences.length) {
+    return `<h3>Absences de l'année</h3><table class="fiche-table"><tbody><tr><td class="muted">Aucune absence enregistrée sur la période du contrat.</td></tr></tbody></table>`;
+  }
+  const lignes = absences.map((abs) => {
+    const jours = joursDecomptes(abs).filter((j) => dateDansContrat(aed, j.iso));
+    const heures = jours.reduce((t, j) => t + j.heures, 0);
+    const semaines = [...new Set(jours.map((j) => j.semaine).filter(Boolean))];
+    return `<tr>
+      <td>${frDate(abs.du)}${abs.au !== abs.du ? " → " + frDate(abs.au) : ""}</td>
+      <td>${ech(abs.motif)}${abs.note ? `<div style="color:#64748b">${ech(abs.note)}</div>` : ""}</td>
+      <td class="centre">${jours.length || "—"}</td>
+      <td class="centre">${heures ? fmtH(heures) : "—"}</td>
+      <td class="centre" style="font-weight:700;color:${abs.rattraper && heures ? "#e11d48" : "#059669"}">${abs.rattraper && heures ? "−" + fmtH(heures) : "0h00"}</td>
+      <td>${semaines.length ? semaines.map(ech).join(" / ") : `<span style="color:#cbd5e1">—</span>`}</td>
+    </tr>`;
+  }).join("");
+  return `<h3>Absences de l'année</h3>
+  <table class="fiche-table">
+    <thead><tr><th>Dates</th><th>Motif</th><th>Jours</th><th>Heures</th><th>Impact bilan</th><th>Semaine</th></tr></thead>
+    <tbody>${lignes}</tbody>
+  </table>`;
+}
+
+function htmlJournalFiche(aed) {
+  const ecritures = etat.heuresJournal
+    .filter((e) => e.aedId === aed.id && dateDansContrat(aed, e.date))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (!ecritures.length) {
+    return `<h3>Journal des heures ±</h3><table class="fiche-table"><tbody><tr><td class="muted">Aucune écriture enregistrée sur la période du contrat.</td></tr></tbody></table>`;
+  }
+  const lignes = ecritures.map((e) => `<tr>
+    <td class="centre">${frDate(e.date)}</td>
+    <td>${ech(e.motif)}${e.note ? `<div style="color:#64748b">${ech(e.note)}</div>` : ""}</td>
+    <td class="centre" style="font-weight:700;color:${e.heures >= 0 ? "#059669" : "#e11d48"}">${signeH(e.heures)}</td>
+  </tr>`).join("");
+  return `<h3>Journal des heures ±</h3>
+  <table class="fiche-table">
+    <thead><tr><th>Date</th><th>Motif</th><th>Heures</th></tr></thead>
+    <tbody>${lignes}</tbody>
+  </table>`;
+}
+
+// Format 5 : fiche bilan individuelle (une page par AED)
+function htmlImpressionBilanIndividuel() {
+  const alternance = etat.reglages.alternance?.mode === "paireImpaire"
+    ? "Alternance paires/impaires"
+    : "Semaine affichée";
+  return etat.aeds.map((aed) => {
+    const b = bilanAed(aed);
+    const couleurSolde = b.ecart < 0 ? "#e11d48" : b.ecart > 0 ? "#d97706" : "#059669";
+    return `<div class="page page-bilan">
+      <h1>Fiche bilan individuelle AED</h1>
+      <h2 class="sous-titre">${ech(aed.nom)} — ${ech(etat.titre)}</h2>
+      <div class="fiche-resume">
+        <div class="fiche-box"><div class="lib">Quotité</div><div class="val">${fmtH(aed.quotite)} / semaine</div></div>
+        <div class="fiche-box"><div class="lib">Contrat</div><div class="val" style="font-size:10px">${contratLibelle(aed)}</div></div>
+        <div class="fiche-box"><div class="lib">Semaines dues</div><div class="val">${b.semTotales.toFixed(1)}</div></div>
+        <div class="fiche-box"><div class="lib">Mode calcul</div><div class="val" style="font-size:10px">${alternance}</div></div>
+        <div class="fiche-box"><div class="lib">Dû annuel</div><div class="val">${fmtH(b.du)}</div></div>
+        <div class="fiche-box"><div class="lib">Réalisé à date</div><div class="val">${fmtH(b.realise)}</div></div>
+        <div class="fiche-box"><div class="lib">Projection</div><div class="val">${fmtH(b.projection)}</div></div>
+        <div class="fiche-box"><div class="lib">Solde projeté</div><div class="val" style="color:${couleurSolde}">${signeH(b.ecart)}</div></div>
+      </div>
+      <div class="fiche-note">Projection = heures planifiées dans le contrat − absences à rattraper + journal. Les absences sans rattrapage sont conservées dans le registre mais n'ouvrent pas de dette d'heures.</div>
+      <div class="fiche-solde">
+        <div class="fiche-box"><div class="lib">Planifié total</div><div class="val">${fmtH(b.planifieTotal)}</div></div>
+        <div class="fiche-box"><div class="lib">Abs. à rattraper</div><div class="val" style="color:#e11d48">${b.absTotal ? "−" + fmtH(b.absTotal) : "0h00"}</div></div>
+        <div class="fiche-box"><div class="lib">Journal total</div><div class="val" style="color:${b.jrnTotal >= 0 ? "#059669" : "#e11d48"}">${signeH(b.jrnTotal)}</div></div>
+        <div class="fiche-box"><div class="lib">J. admin</div><div class="val">${b.adminN ? `${b.adminN} j · ${fmtH(b.adminH)}` : "—"}</div></div>
+        <div class="fiche-box"><div class="lib">Écart au dû</div><div class="val" style="color:${couleurSolde}">${signeH(b.ecart)}</div></div>
+      </div>
+      ${htmlPlanningFiche(aed)}
+      ${htmlAbsencesFiche(aed)}
+      ${htmlJournalFiche(aed)}
+      ${cartoucheSignature()}
+      <div class="pied">Édité le ${dateJour()}</div>
+    </div>`;
+  }).join("");
+}
+
+// ---------- Export Excel ----------
+let sheetJSPret = null;
+function chargerSheetJS() {
+  if (window.XLSX) return Promise.resolve();
+  if (sheetJSPret) return sheetJSPret;
+  sheetJSPret = new Promise((ok, ko) => {
+    const s = document.createElement("script");
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+    s.onload = ok;
+    s.onerror = () => { sheetJSPret = null; ko(); };
+    document.head.appendChild(s);
+  });
+  return sheetJSPret;
+}
+
+const nomFeuille = (nom) => nom.replace(/[\\\/\?\*\[\]:]/g, " ").trim().slice(0, 31) || "AED";
+
+function exporterExcel() {
+  chargerSheetJS().then(() => {
+    const wb = XLSX.utils.book_new();
+
+    // Feuille 1 : synthèse des heures
+    const synthese = [["AED", ...JOURS, "Total", "Quotité", "Écart"]];
+    for (const a of etat.aeds) {
+      const total = heuresSemaine(a.id);
+      const arr2 = (x) => Math.round(x * 100) / 100;
+      synthese.push([a.nom, ...JOURS.map((j) => heuresJour(a.id, j) ? arr2(heuresJour(a.id, j)) : ""), arr2(total), a.quotite, arr2(total - a.quotite)]);
+    }
+    const ws1 = XLSX.utils.aoa_to_sheet(synthese);
+    ws1["!cols"] = [{ wch: 20 }, ...JOURS.map(() => ({ wch: 10 })), { wch: 8 }, { wch: 8 }, { wch: 8 }];
+    XLSX.utils.book_append_sheet(wb, ws1, "Synthèse");
+
+    // Feuille 2 : planning général (blocs horaires)
+    const general = [["AED", ...JOURS]];
+    for (const a of etat.aeds) {
+      general.push([
+        a.nom,
+        ...JOURS.map((jour) =>
+          blocs(a.id, jour).map((b) => {
+            const p = posteParId(b.pid);
+            return labelHeure(b.debut) + "–" + labelHeure(b.fin) + " " + (p ? p.nom : "?");
+          }).join("\n")
+        ),
+      ]);
+    }
+    const ws2 = XLSX.utils.aoa_to_sheet(general);
+    ws2["!cols"] = [{ wch: 20 }, ...JOURS.map(() => ({ wch: 32 }))];
+    XLSX.utils.book_append_sheet(wb, ws2, "Planning général");
+
+    // Une feuille par AED : grille créneaux × jours
+    const noms = new Set(["Synthèse", "Planning général"]);
+    for (const a of etat.aeds) {
+      const grille = [["Heure", ...JOURS]];
+      for (let cr = 0; cr < NB; cr++) {
+        grille.push([
+          labelHeure(cr) + "–" + labelHeure(cr + 1),
+          ...JOURS.map((jour) => {
+            const pid = (etat.planning[a.id] || {})[jour]?.[cr];
+            return pid ? (posteParId(pid)?.nom || "?") : "";
+          }),
+        ]);
+      }
+      const ws = XLSX.utils.aoa_to_sheet(grille);
+      ws["!cols"] = [{ wch: 13 }, ...JOURS.map(() => ({ wch: 22 }))];
+      let nom = nomFeuille(a.nom), n = 2;
+      while (noms.has(nom)) nom = nomFeuille(a.nom).slice(0, 28) + " " + n++;
+      noms.add(nom);
+      XLSX.utils.book_append_sheet(wb, ws, nom);
+    }
+
+    // Feuilles RH
+    const arr2 = (x) => Math.round(x * 100) / 100;
+    const nomAed = (id) => etat.aeds.find((a) => a.id === id)?.nom || "?";
+    const fAbs = [["AED", "Du", "Au", "Motif", "Statut", "Jours décomptés", "Heures perdues", "À rattraper", "Note"]];
+    for (const abs of etat.absencesAn.slice().sort((a, b) => a.du.localeCompare(b.du))) {
+      const js = joursDecomptes(abs);
+      fAbs.push([nomAed(abs.aedId), abs.du, abs.au, abs.motif, abs.statut || "", js.length, arr2(js.reduce((t, j) => t + j.heures, 0)), abs.rattraper ? "oui" : "non", abs.note || ""]);
+    }
+    const wsA = XLSX.utils.aoa_to_sheet(fAbs);
+    wsA["!cols"] = [{ wch: 18 }, { wch: 11 }, { wch: 11 }, { wch: 20 }, { wch: 15 }, { wch: 14 }, { wch: 13 }, { wch: 11 }, { wch: 28 }];
+    XLSX.utils.book_append_sheet(wb, wsA, "Absences");
+
+    const fJrn = [["Date", "AED", "Motif", "Heures", "Note"]];
+    for (const e of etat.heuresJournal.slice().sort((a, b) => a.date.localeCompare(b.date)))
+      fJrn.push([e.date, nomAed(e.aedId), e.motif, arr2(e.heures), e.note || ""]);
+    const wsJ = XLSX.utils.aoa_to_sheet(fJrn);
+    wsJ["!cols"] = [{ wch: 11 }, { wch: 18 }, { wch: 22 }, { wch: 9 }, { wch: 28 }];
+    XLSX.utils.book_append_sheet(wb, wsJ, "Journal heures");
+
+    const fBil = [["AED", "Hebdo posé", "Dû annuel", "Réalisé à date", "Abs. à rattraper (à date)", "J. admin (h)", "Journal ±", "Projection", "Écart projeté"]];
+    for (const a of etat.aeds) {
+      const b = bilanAed(a);
+      fBil.push([a.nom, arr2(b.hebdo), arr2(b.du), arr2(b.realise), arr2(b.absADate), arr2(b.adminH), arr2(b.jrnTotal), arr2(b.projection), arr2(b.ecart)]);
+    }
+    const wsB = XLSX.utils.aoa_to_sheet(fBil);
+    wsB["!cols"] = fBil[0].map((_, i) => ({ wch: i === 0 ? 18 : 13 }));
+    XLSX.utils.book_append_sheet(wb, wsB, "Bilan annuel");
+
+    const fDos = [["AED", "Téléphone", "Email", "Personne à prévenir", "Contrat", "Quotité", "1er poste AED", "Limite 6 ans"]];
+    for (const a of etat.aeds) {
+      const rh = a.rh || {};
+      fDos.push([a.nom, a.telephone || "", a.email || "", rh.urgence || "", contratLibelle(a), a.quotite, debutStatut(a) || "", debutStatut(a) ? sixAnsApres(debutStatut(a)) : ""]);
+    }
+    const wsD = XLSX.utils.aoa_to_sheet(fDos);
+    wsD["!cols"] = [{ wch: 18 }, { wch: 14 }, { wch: 24 }, { wch: 24 }, { wch: 28 }, { wch: 9 }, { wch: 13 }, { wch: 13 }];
+    XLSX.utils.book_append_sheet(wb, wsD, "Dossiers");
+
+    XLSX.writeFile(wb, "edt-aed-rh.xlsx");
+  }).catch(() =>
+    alert("L'export Excel nécessite une connexion internet (téléchargement du module à la première utilisation).")
+  );
+}
+
+// Format 4 : affichage journalier (une page par jour, « qui est où »)
+function htmlImpressionJour() {
+  return JOURS.map((jour) => {
+    const lignes = etat.aeds.map((a) => {
+      const abs = estAbsent(a.id, jour);
+      const bs = blocs(a.id, jour);
+      let contenu;
+      if (abs) contenu = `<span style="color:#e11d48;font-weight:700">ABSENT</span>`;
+      else if (!bs.length) contenu = `<span style="color:#cbd5e1">—</span>`;
+      else contenu = bs.map((b) => {
+        const p = posteParId(b.pid);
+        return `<span style="white-space:nowrap;display:inline-block;margin:1px 8px 1px 0;padding:2px 7px;border-radius:5px;background:${p ? COULEURS[p.couleur].fond : "#eee"};color:${p ? COULEURS[p.couleur].texte : "#333"};font-size:10.5px">
+          <b>${labelHeure(b.debut)}–${labelHeure(b.fin)}</b> ${p ? ech(p.nom) : "?"}</span>`;
+      }).join("");
+      return `<tr>
+        <td style="padding:6px 8px;font-weight:700;font-size:12px;white-space:nowrap${abs ? ";color:#e11d48" : ""}">${ech(a.nom)}</td>
+        <td style="padding:5px 8px;text-align:left">${contenu}</td>
+      </tr>`;
+    }).join("");
+    return `<div class="page">
+      <h1>${ech(etat.titre)}${suffixeSemaine()}</h1>
+      <h2 class="sous-titre" style="font-size:15px;font-weight:700">${jour}</h2>
+      <table>
+        <thead><tr><th style="width:130px;text-align:left">AED</th><th style="text-align:left">Services de la journée</th></tr></thead>
+        <tbody>${lignes}</tbody>
+      </table>
+      <div class="pied">Édité le ${dateJour()}</div>
+    </div>`;
+  }).join("");
+}
+
+// ---------- Documents RH individuels ----------
+const enteteDoc = (a, titreDoc) => `<div class="entete-doc">
+    <span><b>${ech(etat.titre)}</b></span><span>${dateJour()}</span>
+  </div>
+  <h1>${titreDoc}</h1>
+  <p><b>${ech(a.nom)}</b> — Assistant(e) d'éducation · ${contratLibelle(a)} · quotité ${fmtH(a.quotite)} hebdomadaires</p>`;
+
+const signaturesDoc = () => `<div style="display:flex;gap:40px;margin-top:30px">
+    <div style="flex:1"><b>L'AED</b><br><span style="color:#94a3b8">Signature :</span><div style="height:56px"></div></div>
+    <div style="flex:1"><b>Le CPE</b><br><span style="color:#94a3b8">Signature :</span><div style="height:56px"></div></div>
+  </div>`;
+
+function htmlDocAttestation(a) {
+  const b = bilanAed(a);
+  return `<div class="page doc">${enteteDoc(a, "Attestation d'heures de service")}
+    <p>Je soussigné(e), Conseiller(ère) Principal(e) d'Éducation, atteste que les heures de service
+    de <b>${ech(a.nom)}</b> s'établissent comme suit à la date du ${dateJour()} :</p>
+    <table style="width:100%"><tbody>
+      <tr><td>Heures hebdomadaires planifiées</td><td class="centre"><b>${fmtH(b.hebdo)}</b></td></tr>
+      <tr><td>Heures réalisées à date (planning − absences à rattraper + heures complémentaires)</td><td class="centre"><b>${fmtH(b.realise)}</b></td></tr>
+      <tr><td>dont journées administratives</td><td class="centre">${b.adminN ? b.adminN + " j · " + fmtH(b.adminH) : "—"}</td></tr>
+      <tr><td>Dû annuel (quotité × ${etat.semainesTravaillees} semaines)</td><td class="centre">${fmtH(b.du)}</td></tr>
+      <tr><td>Projection fin d'année</td><td class="centre">${fmtH(b.projection)}</td></tr>
+      <tr><td>Écart projeté</td><td class="centre" style="font-weight:700;color:${b.ecart < 0 ? "#e11d48" : "#059669"}">${b.ecart >= 0 ? "+" : "−"}${fmtH(Math.abs(b.ecart))}</td></tr>
+    </tbody></table>
+    <p>Cette attestation est établie pour valoir ce que de droit.</p>
+    ${signaturesDoc()}</div>`;
+}
+
+function htmlDocEtat(a) {
+  const services = JOURS.map((jour) => {
+    const bs = blocs(a.id, jour);
+    return `<tr><td><b>${jour}</b></td><td>${bs.length ? bs.map((bl) => {
+      const p = posteParId(bl.pid);
+      return `${labelHeure(bl.debut)}–${labelHeure(bl.fin)} ${p ? ech(p.nom) : "?"}`;
+    }).join(" · ") : "—"}</td><td class="centre">${fmtH(heuresPlanifiees(a.id, jour))}</td></tr>`;
+  }).join("");
+  return `<div class="page doc">${enteteDoc(a, "État de service hebdomadaire")}
+    <table style="width:100%">
+      <thead><tr><th style="width:90px">Jour</th><th style="text-align:left">Services</th><th style="width:70px">Heures</th></tr></thead>
+      <tbody>${services}</tbody>
+    </table>
+    <p>Total hebdomadaire : <b>${fmtH(JOURS.reduce((t, j) => t + heuresPlanifiees(a.id, j), 0))}</b> pour une quotité de ${fmtH(a.quotite)}.</p>
+    <p style="color:#475569;font-size:11px">Semaine type « ${ech(semaineActive().nom)} ». Les journées administratives et heures complémentaires figurent au journal annuel.</p>
+    ${signaturesDoc()}</div>`;
+}
+
+function htmlDocConvocation(a) {
+  const date = document.getElementById("conv-date")?.value;
+  const heure = document.getElementById("conv-heure")?.value || "10:00";
+  const lieu = document.getElementById("conv-lieu")?.value || "Bureau du CPE";
+  return `<div class="page doc">${enteteDoc(a, "Convocation — entretien annuel")}
+    <p>Dans le cadre du suivi annuel des assistants d'éducation, je vous prie de bien vouloir
+    vous présenter à un entretien :</p>
+    <p style="text-align:center;font-size:14px;margin:16px 0"><b>${date ? "le " + frDate(date) : "à une date à convenir"} à ${heure.replace(":", "h")}</b><br>${ech(lieu)}</p>
+    <p>Cet entretien portera sur le bilan de l'année écoulée, vos points d'appui, vos axes de progrès
+    et vos souhaits d'évolution. Vous pouvez y apporter tout élément que vous jugerez utile.</p>
+    <p style="margin-top:24px">Le CPE,</p>
+    <div style="height:56px"></div></div>`;
+}
+
+function htmlDocBilan(a) {
+  const rh = a.rh || {};
+  const b = bilanAed(a);
+  const absList = etat.absencesAn.filter((x) => x.aedId === a.id).sort((x, y) => x.du.localeCompare(y.du))
+    .map((abs) => {
+      const js = joursDecomptes(abs);
+      return `<tr><td>${frDate(abs.du)}${abs.au !== abs.du ? " → " + frDate(abs.au) : ""}</td><td>${ech(abs.motif)}</td>
+      <td class="centre">${js.length} j · ${fmtH(js.reduce((t, j) => t + j.heures, 0))}</td>
+      <td class="centre">${abs.rattraper ? "à rattraper" : "—"}</td><td class="centre">${ech(abs.statut || "")}</td></tr>`;
+    }).join("");
+  const jrnList = etat.heuresJournal.filter((x) => x.aedId === a.id).sort((x, y) => x.date.localeCompare(y.date))
+    .map((e) => `<tr><td>${frDate(e.date)}</td><td>${ech(e.motif)}${e.note ? " — " + ech(e.note) : ""}</td>
+      <td class="centre" style="color:${e.heures >= 0 ? "#059669" : "#e11d48"}">${e.heures >= 0 ? "+" : "−"}${fmtH(Math.abs(e.heures))}</td></tr>`).join("");
+  const entList = (rh.entretiens || []).map((e) => `<li>${frDate(e.date)} — ${e.realise ? "réalisé" : "prévu"}${e.cr ? " : " + ech(e.cr) : ""}</li>`).join("");
+  const formList = (rh.formations || []).map((f) => `<li>${ech(f.nom)} (${f.date ? frDate(f.date) : "?"}${f.validite ? ", valide jusqu'au " + frDate(f.validite) : ""})</li>`).join("");
+  return `<div class="page doc">${enteteDoc(a, "Fiche bilan annuelle")}
+    <p style="font-size:11px;color:#475569">📞 ${ech(a.telephone || "—")} · ✉️ ${ech(a.email || "—")} · À prévenir : ${ech(rh.urgence || "—")}
+    ${debutStatut(a) ? "· 1er poste AED : " + frDate(debutStatut(a)) : ""}</p>
+    <h1 style="font-size:13px">Heures</h1>
+    <p>Dû annuel <b>${fmtH(b.du)}</b> · Réalisé à date <b>${fmtH(b.realise)}</b> · Projection <b>${fmtH(b.projection)}</b> ·
+    Écart projeté <b style="color:${b.ecart < 0 ? "#e11d48" : "#059669"}">${b.ecart >= 0 ? "+" : "−"}${fmtH(Math.abs(b.ecart))}</b></p>
+    <h1 style="font-size:13px">Absences</h1>
+    ${absList ? `<table style="width:100%"><thead><tr><th>Dates</th><th>Motif</th><th>Décompte</th><th>Dette</th><th>Statut</th></tr></thead><tbody>${absList}</tbody></table>` : "<p>Aucune absence enregistrée.</p>"}
+    <h1 style="font-size:13px">Journal des heures ±</h1>
+    ${jrnList ? `<table style="width:100%"><thead><tr><th>Date</th><th style="text-align:left">Motif</th><th>Heures</th></tr></thead><tbody>${jrnList}</tbody></table>` : "<p>Aucune écriture.</p>"}
+    <h1 style="font-size:13px">Entretiens</h1>${entList ? `<ul style="padding-left:18px">${entList}</ul>` : "<p>Aucun entretien enregistré.</p>"}
+    <h1 style="font-size:13px">Formations</h1>${formList ? `<ul style="padding-left:18px">${formList}</ul>` : "<p>Aucune formation enregistrée.</p>"}
+    ${signaturesDoc()}</div>`;
+}
+
+function imprimerDoc(type, aedId) {
+  const a = etat.aeds.find((x) => x.id === aedId);
+  if (!a) return;
+  const zone = document.getElementById("zone-impression");
+  zone.innerHTML =
+    type === "attestation" ? htmlDocAttestation(a) :
+    type === "etat" ? htmlDocEtat(a) :
+    type === "convocation" ? htmlDocConvocation(a) :
+    htmlDocBilan(a);
+  document.getElementById("page-orient").textContent = "@page { size: A4 portrait; margin: 16mm; }";
+  journaliser(`Document « ${type} » généré pour ${a.nom}`);
+  sauver();
+  window.print();
+}
+
+// Prochain jour de cours (la fiche se remplit la veille pour le lendemain)
+function prochainJourCours() {
+  const d = new Date(aujourdhuiIso() + "T12:00:00");
+  for (let k = 1; k <= 420; k++) {
+    d.setDate(d.getDate() + 1);
+    const iso = isoLocal(d);
+    if (iso > etat.reglages.finAnnee) return null;
+    if ((d.getDay() + 6) % 7 < 5 && dansAnnee(iso) && !estFerie(iso) && !estVacancesIso(iso)) return iso;
+  }
+  return null;
+}
+
+// Fiche d'auto-répartition : UNE journée, grille d'équipe complète + tableaux à remplir
+function htmlImpressionRepartition(iso) {
+  if (!iso) return "";
+  const jourNom = JOURS[(new Date(iso + "T12:00:00").getDay() + 6) % 7];
+  const plan = planningPourDate(iso);
+  const presents = etat.aeds.filter((a) =>
+    !estAbsenteDate(a.id, iso) && Object.keys((plan[a.id] || {})[jourNom] || {}).length);
+  const absents = etat.aeds.filter((a) => estAbsenteDate(a.id, iso));
+
+  // grille de la journée : une colonne par AED présent
+  let lignes = "";
+  for (let cr = 0; cr < NB; cr++) {
+    lignes += `<tr class="${classeCran(cr)}"><td class="h-col">${labelColonne(cr)}</td>`;
+    for (const a of presents) {
+      const pid = (plan[a.id] || {})[jourNom]?.[cr];
+      const poste = pid ? posteParId(pid) : null;
+      lignes += `<td class="mini" style="${poste ? "background:" + COULEURS[poste.couleur].fond : ""}"></td>`;
+    }
+    lignes += "</tr>";
+  }
+  const grille = presents.length ? `<table style="margin:8px 0">
+    <thead><tr><th class="h-col"></th>${presents.map((a) =>
+      `<th style="font-size:9.5px;padding:2px 3px">${ech(a.nom)}</th>`).join("")}</tr></thead>
+    <tbody>${lignes}</tbody>
+  </table>` : `<p>Aucun AED présent ce jour.</p>`;
+
+  const sections = blocsRepartition(iso).map(({ bande, titre, sousPostes, candidats }) => {
+    const rep = (etat.repartitions[iso] || {})[bande] || {};
+    const lignesSp = sousPostes.map((sp) => {
+      const noms = candidats.filter((a) => rep[a.id] === sp).map((a) => ech(a.nom)).join(", ");
+      return `<tr>
+        <td style="padding:6px 8px;font-weight:700;width:170px;font-size:12px">${ech(sp)}</td>
+        <td style="padding:6px 8px;font-size:12px;border-bottom:1px solid #94a3b8">${noms || "&nbsp;"}</td>
+      </tr>`;
+    }).join("");
+    return `<div style="flex:1;min-width:280px">
+      <h1 style="font-size:13.5px;margin:0 0 2px">${ech(titre)}</h1>
+      <p style="font-size:10px;color:#475569;margin:0 0 4px">Postés : ${candidats.length ? candidats.map((a) => ech(a.nom)).join(" · ") : "aucun"}</p>
+      <table style="width:100%"><tbody>${lignesSp}</tbody></table>
+    </div>`;
+  }).join("");
+
+  return `<div class="page doc" style="max-width:none">
+    <div class="entete-doc"><span><b>${ech(etat.titre)}</b></span><span>Édité le ${dateJour()}</span></div>
+    <h1>Équipe du ${jourNom.toLowerCase()} ${frDate(iso)} — auto-répartition</h1>
+    <p style="font-size:11px;color:#475569;margin:2px 0 4px">Répartition à compléter par l'équipe <b>la veille pour le lendemain</b>, puis à afficher en vie scolaire. Signalez tout créneau non couvert au CPE.
+    ${absents.length ? ` · <b style="color:#e11d48">Absents : ${absents.map((a) => ech(a.nom)).join(", ")}</b>` : ""}</p>
+    ${grille}
+    ${legendePostes()}
+    <div style="display:flex;gap:24px;flex-wrap:wrap;margin-top:10px">${sections}</div>
+  </div>`;
+}
+
+function imprimerRepartition(iso) {
+  iso = iso || prochainJourCours();
+  if (!iso) { alert("Aucun jour de cours à venir dans l'année scolaire définie."); return; }
+  document.getElementById("zone-impression").innerHTML = htmlImpressionRepartition(iso);
+  document.getElementById("page-orient").textContent = "@page { size: A4 portrait; margin: 12mm; }";
+  window.print();
+}
+
+function imprimer() {
+  const format = document.getElementById("format-impression").value;
+  const zone = document.getElementById("zone-impression");
+  zone.innerHTML =
+    format === "aed" ? htmlImpressionParAed() :
+    format === "general" ? htmlImpressionGeneral() :
+    format === "jour" ? htmlImpressionJour() :
+    format === "bilan" ? htmlImpressionBilanIndividuel() :
+    format === "repartition" ? htmlImpressionRepartition(prochainJourCours()) :
+    htmlImpressionSuperpose();
+  if (format === "repartition")
+    document.getElementById("page-orient").textContent = "@page { size: A4 portrait; margin: 16mm; }";
+  window.print();
+}
+window.addEventListener("afterprint", () => {
+  document.getElementById("zone-impression").innerHTML = "";
+  document.getElementById("page-orient").textContent = ""; // retour au paysage par défaut
+});
+
+// ---------- Vue mensuelle RH ----------
+let moisAffiche = aujourdhuiIso().slice(0, 7);
+function majMois(v) { if (v) { moisAffiche = v; rendre(); } }
+function htmlMois() {
+  const [an, mo] = moisAffiche.split("-").map(Number);
+  const nbJours = new Date(an, mo, 0).getDate();
+  const evts = {};
+  const pousse = (iso, texte, coul) => {
+    if ((iso || "").slice(0, 7) !== moisAffiche) return;
+    (evts[iso] = evts[iso] || []).push({ texte, coul });
+  };
+  for (const [iso, nom] of feriesAnnee(an)) pousse(iso, "Férié — " + nom, "#7c3aed");
+  for (const v of etat.reglages.vacances) {
+    pousse(v.du, "🏖 Début des vacances (" + v.nom + ")", "#0891b2");
+    pousse(v.au, "🏖 Dernier jour des vacances (" + v.nom + ")", "#0891b2");
+  }
+  for (const abs of etat.absencesAn) {
+    const nom = etat.aeds.find((x) => x.id === abs.aedId)?.nom || "?";
+    pousse(abs.du, `🤒 ${nom} — début d'absence (${abs.motif}${abs.au !== abs.du ? ", jusqu'au " + frDate(abs.au) : ""}) · ${abs.statut || ""}`, "#e11d48");
+  }
+  for (const e of etat.heuresJournal)
+    pousse(e.date, `⏱ ${etat.aeds.find((x) => x.id === e.aedId)?.nom || "?"} — ${e.motif} ${e.heures > 0 ? "+" : "−"}${fmtH(Math.abs(e.heures))}`, e.heures >= 0 ? "#059669" : "#e11d48");
+  for (const a of etat.aeds) {
+    if (a.contratFin) pousse(a.contratFin, `📄 Fin de contrat — ${a.nom}`, "#e11d48");
+    const limite = sixAnsApres(debutStatut(a));
+    if (limite) pousse(limite, `⚖️ Limite des 6 ans — ${a.nom}`, "#7c3aed");
+    for (const c of a.rh?.contrats || [])
+      if (c.finEssai) pousse(c.finEssai, `📄 Fin de période d'essai — ${a.nom}`, "#d97706");
+    for (const f of a.rh?.formations || [])
+      if (f.validite) pousse(f.validite, `🎓 Expiration formation ${f.nom} — ${a.nom}`, "#d97706");
+    for (const e of a.rh?.entretiens || [])
+      pousse(e.date, `🗣 Entretien ${e.realise ? "réalisé" : "prévu"} — ${a.nom}`, e.realise ? "#059669" : "#2563eb");
+  }
+  let lignes = "";
+  for (let j = 1; j <= nbJours; j++) {
+    const iso = moisAffiche + "-" + String(j).padStart(2, "0");
+    if (!evts[iso]) continue;
+    const d = new Date(an, mo - 1, j);
+    const we = d.getDay() === 0 || d.getDay() === 6;
+    lignes += `<tr>
+      <td class="centre" style="white-space:nowrap;font-weight:600;${we ? "color:#94a3b8" : ""}">${d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" })}</td>
+      <td style="padding:5px 8px;text-align:left;font-size:12.5px">${evts[iso].map((e) =>
+        `<div style="padding:1px 0"><span style="color:${e.coul};font-weight:600">●</span> ${ech(e.texte)}</div>`).join("")}</td>
+    </tr>`;
+  }
+  return `<div class="carte">
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:8px">
+      <h3 style="font-size:15px">Vue mensuelle RH</h3>
+      <input type="month" value="${moisAffiche}" onchange="majMois(this.value)" style="font-size:13px">
+    </div>
+    <p class="aide" style="margin:0 0 8px">Tous les événements RH du mois : fins de contrat, périodes d'essai, limite des 6 ans, entretiens, formations, absences, écritures d'heures, fériés et vacances.</p>
+    ${lignes ? `<table style="max-width:760px"><thead><tr><th style="width:80px">Jour</th><th style="text-align:left">Événements</th></tr></thead><tbody>${lignes}</tbody></table>`
+      : `<p class="aide">Aucun événement ce mois-ci.</p>`}
+  </div>`;
+}
+
+// ---------- Recherche globale ----------
+function allerA(vueCible, aedId) {
+  if (aedId) aedActif = aedId;
+  document.getElementById("res-recherche").style.display = "none";
+  document.getElementById("recherche").value = "";
+  setVue(vueCible);
+}
+function rechercher(q) {
+  q = q.toLowerCase().trim();
+  const res = [];
+  if (q.length < 2) return res;
+  const m = (s) => (s || "").toLowerCase().includes(q);
+  for (const a of etat.aeds) {
+    if (m(a.nom) || m(a.telephone) || m(a.email)) res.push({ label: `<b>${ech(a.nom)}</b> — dossier AED`, vue: "dossiers", aedId: a.id });
+    for (const o of a.rh?.obs || []) if (m(o.texte)) res.push({ label: `${ech(a.nom)} — observation : ${ech(o.texte.slice(0, 60))}`, vue: "dossiers", aedId: a.id });
+    for (const c of a.rh?.contrats || []) if (m(c.note) || m(c.type)) res.push({ label: `${ech(a.nom)} — contrat ${ech(c.type)} ${c.du ? frDate(c.du) : ""}`, vue: "dossiers", aedId: a.id });
+    for (const f of a.rh?.formations || []) if (m(f.nom) || m(f.note)) res.push({ label: `${ech(a.nom)} — formation ${ech(f.nom)}`, vue: "dossiers", aedId: a.id });
+    for (const e of a.rh?.entretiens || []) if (m(e.cr)) res.push({ label: `${ech(a.nom)} — entretien : ${ech((e.cr || "").slice(0, 60))}`, vue: "dossiers", aedId: a.id });
+  }
+  for (const abs of etat.absencesAn) {
+    const nom = etat.aeds.find((x) => x.id === abs.aedId)?.nom || "?";
+    if (m(nom) || m(abs.motif) || m(abs.note) || m(abs.statut)) res.push({ label: `${ech(nom)} — absence ${ech(abs.motif)} (${frDate(abs.du)})`, vue: "absences", aedId: abs.aedId });
+  }
+  for (const e of etat.heuresJournal) {
+    const nom = etat.aeds.find((x) => x.id === e.aedId)?.nom || "?";
+    if (m(nom) || m(e.motif) || m(e.note)) res.push({ label: `${ech(nom)} — ${ech(e.motif)} ${e.heures > 0 ? "+" : ""}${e.heures}h (${frDate(e.date)})`, vue: "annee", aedId: e.aedId });
+  }
+  for (const p of etat.postes) if (m(p.nom)) res.push({ label: `Poste — ${ech(p.nom)} (synthèse équipe)`, vue: "equipe" });
+  return res.slice(0, 20);
+}
+document.getElementById("recherche").addEventListener("input", (e) => {
+  const res = rechercher(e.target.value);
+  const panneau = document.getElementById("res-recherche");
+  if (!res.length) { panneau.style.display = "none"; return; }
+  panneau.innerHTML = res.map((r) =>
+    `<div class="res" onclick="allerA('${r.vue}'${r.aedId ? `,'${r.aedId}'` : ""})">${r.label}</div>`).join("");
+  panneau.style.display = "block";
+});
+document.addEventListener("mousedown", (e) => {
+  if (!e.target.closest("#res-recherche") && e.target.id !== "recherche")
+    document.getElementById("res-recherche").style.display = "none";
+});
+
+// Au lancement : si on est pendant l'année scolaire, afficher la semaine en cours
+if (dansAnnee(aujourdhuiIso())) {
+  semaineReelle = lundiDeSemaine(aujourdhuiIso());
+  etat.planning = etat.derogations[semaineReelle] || semainePourDate(semaineReelle)?.planning || {};
+}
+rendre();
+initialiserSauvegardeFichier();
+</script>
+<script>
+// ---------- Couche serveur (mode multi-utilisateurs) ----------
+(async () => {
+  if (!location.protocol.startsWith("http")) return; // le fichier reste utilisable seul
+  try {
+    const rMoi = await fetch("/api/moi");
+    if (rMoi.status === 401) { location.href = "/"; return; }
+    const moi = await rMoi.json();
+    if (moi.role !== "cpe") { location.href = "aed-pilote.html"; return; }
+
+    // 1. Charger l'état depuis le serveur (source de vérité)
+    const rEtat = await fetch("/api/etat");
+    if (rEtat.ok) {
+      const d = await rEtat.json();
+      if (d && d.aeds) {
+        etat = migrer(d);
+        normaliser();
+        aedActif = etat.aeds[0]?.id;
+        posteActif = etat.postes[0]?.id;
+        if (dansAnnee(aujourdhuiIso())) {
+          semaineReelle = lundiDeSemaine(aujourdhuiIso());
+          etat.planning = etat.derogations[semaineReelle] || semainePourDate(semaineReelle)?.planning || {};
+        } else {
+          semaineReelle = null;
+          etat.planning = semaineActive()?.planning || {};
+        }
+        rendre();
+      }
+    }
+
+    // 2. Pousser vers le serveur à chaque sauvegarde (avec temporisation)
+    const sauverLocal = sauver;
+    let minuteurPush = null;
+    window.sauver = function () {
+      sauverLocal();
+      clearTimeout(minuteurPush);
+      minuteurPush = setTimeout(async () => {
+        try {
+          const rep = await fetch("/api/etat", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(etat),
+          });
+          const s = document.getElementById("statut");
+          s.textContent = rep.ok ? "✓ serveur" : "⚠ erreur serveur";
+          setTimeout(() => (s.textContent = ""), 1800);
+        } catch (e) {
+          document.getElementById("statut").textContent = "⚠ serveur injoignable";
+        }
+      }, 800);
+    };
+    // premier envoi si le serveur était vide
+    if (!rEtat.ok) window.sauver();
+
+    // 3. Récupérer en continu les répartitions saisies par les AED
+    setInterval(async () => {
+      try {
+        const rr = await fetch("/api/repartitions");
+        if (rr.ok) {
+          etat.repartitions = await rr.json();
+          if (vue === "repartition") rendre();
+        }
+      } catch (e) {}
+    }, 20000);
+
+    // 4. Boutons serveur dans l'en-tête : comptes, mot de passe, déconnexion
+    const entete = document.querySelector("header");
+    const zone = document.createElement("span");
+    zone.style.cssText = "display:inline-flex;gap:6px";
+    zone.innerHTML = `
+      <button class="btn" id="btn-comptes">👥 Comptes</button>
+      <button class="btn-ico" title="Changer mon mot de passe" id="btn-mdp">🔑</button>
+      <button class="btn-ico" title="Se déconnecter" id="btn-deco">🚪</button>`;
+    entete.appendChild(zone);
+    document.getElementById("btn-deco").onclick = async () => { await fetch("/api/deconnexion", { method: "POST" }); location.href = "/"; };
+    document.getElementById("btn-mdp").onclick = changerMdp;
+    document.getElementById("btn-comptes").onclick = ouvrirComptes;
+
+    async function changerMdp() {
+      const actuel = prompt("Mot de passe actuel :");
+      if (actuel === null) return;
+      const nouveau = prompt("Nouveau mot de passe (8 caractères minimum) :");
+      if (nouveau === null) return;
+      const r = await fetch("/api/mdp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ actuel, nouveau }) });
+      alert(r.ok ? "Mot de passe modifié." : "Échec : " + ((await r.json()).erreur || ""));
+    }
+
+    async function ouvrirComptes() {
+      let panneau = document.getElementById("panneau-comptes");
+      if (panneau) { panneau.remove(); return; }
+      const r = await fetch("/api/comptes");
+      const liste = r.ok ? await r.json() : [];
+      panneau = document.createElement("div");
+      panneau.id = "panneau-comptes";
+      panneau.style.cssText = "position:fixed;top:56px;right:16px;z-index:95;background:#fff;border:1px solid #e2e8f0;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.18);padding:14px;width:330px;font-size:13px";
+      panneau.innerHTML = `
+        <div style="font-weight:700;margin-bottom:8px">Comptes d'accès</div>
+        <div style="max-height:180px;overflow-y:auto;margin-bottom:10px">
+          ${liste.map((c) => `<div style="display:flex;gap:6px;align-items:center;padding:3px 0;border-bottom:1px solid #f1f5f9">
+            <span style="flex:1"><b>${c.login}</b> · ${c.nom} <span style="color:#94a3b8">(${c.role})</span></span>
+            <button data-suppr="${c.login}" style="border:none;background:none;color:#e11d48;cursor:pointer">✕</button>
+          </div>`).join("")}
+        </div>
+        <div style="font-weight:600;margin-bottom:4px">Créer / réinitialiser un compte AED</div>
+        <input id="cpt-login" placeholder="identifiant (ex: m.dupont)" style="width:100%;margin-bottom:5px;padding:5px;border:1px solid #cbd5e1;border-radius:6px">
+        <input id="cpt-nom" placeholder="nom affiché" style="width:100%;margin-bottom:5px;padding:5px;border:1px solid #cbd5e1;border-radius:6px">
+        <input id="cpt-mdp" placeholder="mot de passe (8 car. min)" style="width:100%;margin-bottom:8px;padding:5px;border:1px solid #cbd5e1;border-radius:6px">
+        <button id="cpt-creer" style="width:100%;padding:7px;background:#2563eb;color:#fff;border:none;border-radius:7px;font-weight:600;cursor:pointer">Enregistrer</button>
+        <p style="color:#94a3b8;font-size:11px;margin-top:6px">Les comptes AED ne voient que les plannings et l'auto-répartition — jamais les absences, dossiers ou alertes.</p>`;
+      document.body.appendChild(panneau);
+      panneau.querySelectorAll("[data-suppr]").forEach((b) => (b.onclick = async () => {
+        if (!confirm(`Supprimer le compte ${b.dataset.suppr} ?`)) return;
+        await fetch("/api/comptes/" + encodeURIComponent(b.dataset.suppr), { method: "DELETE" });
+        panneau.remove(); ouvrirComptes();
+      }));
+      panneau.querySelector("#cpt-creer").onclick = async () => {
+        const r2 = await fetch("/api/comptes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            login: panneau.querySelector("#cpt-login").value,
+            nom: panneau.querySelector("#cpt-nom").value,
+            mdp: panneau.querySelector("#cpt-mdp").value,
+            role: "aed",
+          }),
+        });
+        if (r2.ok) { panneau.remove(); ouvrirComptes(); }
+        else alert("Échec : " + ((await r2.json()).erreur || ""));
+      };
+    }
+  } catch (e) { console.warn("Mode serveur indisponible :", e); }
+})();
+</script>
+</body>
+</html>
