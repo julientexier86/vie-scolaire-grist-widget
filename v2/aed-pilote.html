@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vie scolaire — Équipe AED</title>
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+<script src="etat-grist.js"></script>
+<script src="backend-grist.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f1f5f9; color: #1e293b; }
+  button { cursor: pointer; font-family: inherit; }
+  header { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  header h1 { font-size: 16px; flex: 1; min-width: 200px; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; font-size: 13px; background: #1e293b; color: #fff; border: none; border-radius: 8px; }
+  .btn-ico { border: none; background: #f1f5f9; font-size: 15px; padding: 5px 8px; border-radius: 6px; color: #475569; }
+  .contenu { padding: 14px 16px; max-width: 1200px; margin: 0 auto; }
+  .onglets { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .onglet { padding: 7px 14px; font-size: 13px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; }
+  .onglet.actif { background: #2563eb; color: #fff; border-color: #2563eb; }
+  .carte { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; margin-bottom: 14px; }
+  .nav-date { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .nav-date b { font-size: 14px; }
+  table { border-collapse: collapse; }
+  th, td { border: 1px solid #e2e8f0; }
+  th { background: #f8fafc; font-size: 12px; padding: 4px 8px; }
+  td.h-col, th.h-col { border: none; background: none; width: 44px; text-align: right; padding-right: 5px; font-size: 10px; color: #94a3b8; vertical-align: top; }
+  .demi { font-size: 8.5px; color: #cbd5e1; }
+  td.cr { height: 4px; padding: 0; border-top: none; border-bottom: none; position: relative; }
+  tr.cran-30 td.cr { border-top: 1px dotted #e2e8f0; }
+  tr.cran-60 td.cr { border-top: 1px solid #cbd5e1; }
+  tr:last-child td.cr { border-bottom: 1px solid #cbd5e1; }
+  td.cr .etiq { position: absolute; top: 1px; left: 3px; font-size: 9.5px; font-weight: 600; white-space: nowrap; z-index: 1; pointer-events: none; }
+  .legende { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; font-size: 12px; }
+  .legende i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; vertical-align: -2px; margin-right: 4px; }
+  .aide { font-size: 12px; color: #94a3b8; }
+  select, input[type="date"] { font-size: 13px; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; }
+  .badge-abs { font-size: 10.5px; background: #fee2e2; color: #b91c1c; border-radius: 4px; padding: 1px 5px; font-weight: 700; }
+  .jour-carte { flex: 1; min-width: 240px; }
+  .cpt { font-size: 10.5px; padding: 1px 6px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🏫 <span id="titre-app">Vie scolaire</span> <span style="font-size:12px;color:#94a3b8">— espace équipe</span></h1>
+  <span style="font-size:13px;color:#475569" id="qui"></span>
+</header>
+<div class="contenu">
+  <div class="onglets">
+    <button class="onglet" id="ong-repartition" onclick="setVue('repartition')">📋 Auto-répartition</button>
+    <button class="onglet" id="ong-jour" onclick="setVue('jour')">👥 Équipe (journée)</button>
+    <button class="onglet" id="ong-semaine" onclick="setVue('semaine')">📅 EDT d'un AED (semaine)</button>
+  </div>
+  <div id="zone"></div>
+</div>
+<script>
+"use strict";
+// ---------- Constantes identiques à l'application CPE ----------
+const JOURS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"];
+const H_DEBUT = 7.5, H_FIN = 18.5, PAS = 5;
+const NB = ((H_FIN - H_DEBUT) * 60) / PAS;
+const PAR_30 = 30 / PAS, PAR_H = 60 / PAS;
+const COULEURS = [
+  { fond: "#93c5fd", texte: "#1e3a8a" }, { fond: "#6ee7b7", texte: "#064e3b" },
+  { fond: "#fcd34d", texte: "#78350f" }, { fond: "#d8b4fe", texte: "#581c87" },
+  { fond: "#fda4af", texte: "#881337" }, { fond: "#67e8f9", texte: "#164e63" },
+  { fond: "#bef264", texte: "#365314" }, { fond: "#fdba74", texte: "#7c2d12" },
+];
+
+let data = null; // sous-ensemble filtré fourni par le serveur
+let moi = null;
+let vue = "repartition";
+let jourAffiche = null; // iso
+let aedAffiche = null;
+let lundiAffiche = null;
+
+// ---------- Utilitaires (répliques de l'application CPE) ----------
+const isoLocal = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+const frDate = (iso) => { const [y, m, d] = iso.split("-"); return d + "/" + m + "/" + y; };
+const aujourdhuiIso = () => isoLocal(new Date());
+const labelHeure = (i) => { const m = H_DEBUT * 60 + i * PAS; return Math.floor(m / 60) + "h" + String(m % 60).padStart(2, "0"); };
+const classeCran = (cr) => cr % PAR_H === 0 ? "cran-60" : cr % PAR_30 === 0 ? "cran-30" : "";
+const labelColonne = (cr) => cr % PAR_H === 0 ? labelHeure(cr) : cr % PAR_30 === 0 ? `<span class="demi">${labelHeure(cr)}</span>` : "";
+const ech = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+const heureVersCr = (v) => { const [h, m] = v.split(":").map(Number); return Math.max(0, Math.min(NB, Math.round((h * 60 + m - H_DEBUT * 60) / PAS))); };
+const lundiDeSemaine = (iso) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return isoLocal(d); };
+const posteParId = (id) => data.postes.find((p) => p.id === id);
+
+function paques(annee) {
+  const a = annee % 19, b = Math.floor(annee / 100), c = annee % 100;
+  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+  return new Date(annee, Math.floor((h + l - 7 * m + 114) / 31) - 1, ((h + l - 7 * m + 114) % 31) + 1);
+}
+function estFerie(iso) {
+  const annee = +iso.slice(0, 4);
+  const p = paques(annee), plus = (n) => { const d = new Date(p); d.setDate(d.getDate() + n); return isoLocal(d); };
+  return [`${annee}-01-01`, plus(1), `${annee}-05-01`, `${annee}-05-08`, plus(39), plus(50),
+    `${annee}-07-14`, `${annee}-08-15`, `${annee}-11-01`, `${annee}-11-11`, `${annee}-12-25`].includes(iso);
+}
+const estVacances = (iso) => data.reglages.vacances.some((v) => v.du <= iso && iso <= v.au);
+const dansAnnee = (iso) => data.reglages.debutAnnee <= iso && iso <= data.reglages.finAnnee;
+const estJourCours = (iso) => (new Date(iso + "T12:00:00").getDay() + 6) % 7 < 5 && dansAnnee(iso) && !estFerie(iso) && !estVacances(iso);
+const estAbsent = (aedId, iso) => data.absences.some((a) => a.aedId === aedId && a.du <= iso && iso <= a.au);
+
+function numeroSemaineIso(iso) { // norme ISO 8601 (calcul en UTC : insensible à l'heure d'été)
+  const [y, m, j] = iso.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m - 1, j));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  return Math.ceil(((d - Date.UTC(d.getUTCFullYear(), 0, 1)) / 864e5 + 1) / 7);
+}
+function semainePourDate(iso) {
+  const alt = data.reglages.alternance || {};
+  if (iso && alt.mode === "paireImpaire") {
+    const id = numeroSemaineIso(iso) % 2 === 0 ? alt.semainePaire : alt.semaineImpaire;
+    return data.semaines.find((s) => s.id === id) || data.semaines.find((s) => s.id === data.semaineActive) || data.semaines[0];
+  }
+  return data.semaines.find((s) => s.id === data.semaineActive) || data.semaines[0];
+}
+function planningPourDate(iso) {
+  const der = data.derogations[lundiDeSemaine(iso)];
+  if (der) return der;
+  return semainePourDate(iso)?.planning || {};
+}
+function prochainJourCours() {
+  const d = new Date(aujourdhuiIso() + "T12:00:00");
+  for (let k = 1; k <= 420; k++) {
+    d.setDate(d.getDate() + 1);
+    const iso = isoLocal(d);
+    if (iso > data.reglages.finAnnee) break;
+    if (estJourCours(iso)) return iso;
+  }
+  return null;
+}
+const jourNomDe = (iso) => JOURS[(new Date(iso + "T12:00:00").getDay() + 6) % 7] || null;
+
+// ---------- Rendu ----------
+function setVue(v) { vue = v; rendre(); }
+function rendre() {
+  for (const v of ["repartition", "jour", "semaine"])
+    document.getElementById("ong-" + v).className = "onglet" + (vue === v ? " actif" : "");
+  document.getElementById("zone").innerHTML =
+    vue === "jour" ? htmlJour() : vue === "semaine" ? htmlSemaine() : htmlRepartition();
+}
+
+const legende = () => `<div class="legende">${data.postes.map((p) =>
+  `<span><i style="background:${COULEURS[p.couleur].fond}"></i>${ech(p.nom)}</span>`).join("")}</div>`;
+
+function navJour(cible) {
+  let d = new Date(jourAffiche + "T12:00:00");
+  for (let k = 0; k < 60; k++) {
+    d.setDate(d.getDate() + cible);
+    const iso = isoLocal(d);
+    if (iso < data.reglages.debutAnnee || iso > data.reglages.finAnnee) return;
+    if (estJourCours(iso)) { jourAffiche = iso; rendre(); return; }
+  }
+}
+
+// --- Vue équipe / journée ---
+function htmlJour() {
+  const iso = jourAffiche;
+  const jourNom = jourNomDe(iso);
+  const plan = planningPourDate(iso);
+  const presents = data.aeds.filter((a) => !estAbsent(a.id, iso) && Object.keys((plan[a.id] || {})[jourNom] || {}).length);
+  const absents = data.aeds.filter((a) => estAbsent(a.id, iso));
+  let lignes = "";
+  for (let cr = 0; cr < NB; cr++) {
+    lignes += `<tr class="${classeCran(cr)}"><td class="h-col">${labelColonne(cr)}</td>`;
+    for (const a of presents) {
+      const pid = (plan[a.id] || {})[jourNom]?.[cr];
+      const poste = pid ? posteParId(pid) : null;
+      const prec = (plan[a.id] || {})[jourNom]?.[cr - 1];
+      const etiq = pid && prec !== pid && poste ? `<span class="etiq" style="color:${COULEURS[poste.couleur].texte}">${ech(poste.nom)}</span>` : "";
+      lignes += `<td class="cr" style="${poste ? "background:" + COULEURS[poste.couleur].fond : ""}" title="${poste ? ech(poste.nom) + " — " : ""}${labelHeure(cr)}">${etiq}</td>`;
+    }
+    lignes += "</tr>";
+  }
+  return `<div class="carte">
+    <div class="nav-date">
+      <button class="btn-ico" onclick="navJour(-1)">‹</button>
+      <b>${jourNom} ${frDate(iso)}</b>
+      <button class="btn-ico" onclick="navJour(1)">›</button>
+      <input type="date" value="${iso}" min="${data.reglages.debutAnnee}" max="${data.reglages.finAnnee}"
+        onchange="if(this.value){jourAffiche=this.value;rendre()}">
+      ${absents.length ? `<span class="badge-abs">Absents : ${absents.map((a) => ech(a.nom)).join(", ")}</span>` : ""}
+    </div>
+    ${estJourCours(iso) ? (presents.length ? `<table style="width:100%;max-width:1000px">
+      <thead><tr><th class="h-col"></th>${presents.map((a) => `<th>${ech(a.nom)}</th>`).join("")}</tr></thead>
+      <tbody>${lignes}</tbody>
+    </table>${legende()}` : `<p class="aide">Aucun AED en service ce jour.</p>`) : `<p class="aide">Pas de cours ce jour (week-end, férié ou vacances).</p>`}
+  </div>`;
+}
+
+// --- Vue EDT d'un AED / semaine ---
+function navSemaine(sens) {
+  const d = new Date(lundiAffiche + "T12:00:00");
+  d.setDate(d.getDate() + sens * 7);
+  const iso = isoLocal(d);
+  if (iso >= lundiDeSemaine(data.reglages.debutAnnee) && iso <= data.reglages.finAnnee) { lundiAffiche = iso; rendre(); }
+}
+function htmlSemaine() {
+  const aed = data.aeds.find((a) => a.id === aedAffiche) || data.aeds[0];
+  aedAffiche = aed?.id;
+  if (!aed) return `<div class="carte"><p class="aide">Aucun AED.</p></div>`;
+  const dates = [];
+  const d = new Date(lundiAffiche + "T12:00:00");
+  for (let k = 0; k < 5; k++) { dates.push(isoLocal(d)); d.setDate(d.getDate() + 1); }
+  const derogee = !!data.derogations[lundiAffiche];
+  let lignes = "";
+  for (let cr = 0; cr < NB; cr++) {
+    lignes += `<tr class="${classeCran(cr)}"><td class="h-col">${labelColonne(cr)}</td>`;
+    dates.forEach((iso, k) => {
+      const horsCours = !estJourCours(iso);
+      const abs = estAbsent(aed.id, iso);
+      const plan = planningPourDate(iso);
+      const pid = horsCours ? null : (plan[aed.id] || {})[JOURS[k]]?.[cr];
+      const poste = pid ? posteParId(pid) : null;
+      const prec = (plan[aed.id] || {})[JOURS[k]]?.[cr - 1];
+      const etiq = pid && prec !== pid && poste ? `<span class="etiq" style="color:${COULEURS[poste.couleur].texte}">${ech(poste.nom)}</span>` : "";
+      let style = poste ? `background:${COULEURS[poste.couleur].fond}` : horsCours ? "background:#f1f5f9" : "";
+      if (abs) style += ";filter:grayscale(.8);opacity:.4";
+      lignes += `<td class="cr" style="${style}">${etiq}</td>`;
+    });
+    lignes += "</tr>";
+  }
+  return `<div class="carte">
+    <div class="nav-date">
+      <select onchange="aedAffiche=this.value;rendre()">${data.aeds.map((a) =>
+        `<option value="${a.id}"${a.id === aedAffiche ? " selected" : ""}>${ech(a.nom)}</option>`).join("")}</select>
+      <button class="btn-ico" onclick="navSemaine(-1)">‹</button>
+      <b>Semaine du ${frDate(lundiAffiche)}</b>
+      <button class="btn-ico" onclick="navSemaine(1)">›</button>
+      <span class="aide">base : ${ech(semainePourDate(lundiAffiche)?.nom || "")}${derogee ? " · planning spécifique cette semaine" : ""}</span>
+    </div>
+    <table style="width:100%;max-width:900px">
+      <thead><tr><th class="h-col"></th>${dates.map((iso, k) =>
+        `<th>${JOURS[k]}<div style="font-weight:400;color:#94a3b8;font-size:10.5px">${frDate(iso)}${estAbsent(aedAffiche, iso) ? ' · <span style="color:#e11d48;font-weight:700">ABSENT</span>' : ""}</div></th>`).join("")}</tr></thead>
+      <tbody>${lignes}</tbody>
+    </table>
+    ${legende()}
+  </div>`;
+}
+
+// --- Auto-répartition ---
+function candidats(iso, posteId, crA, crB) {
+  const plan = planningPourDate(iso);
+  const jourNom = jourNomDe(iso);
+  return data.aeds.filter((a) => {
+    if (estAbsent(a.id, iso)) return false;
+    const jour = (plan[a.id] || {})[jourNom] || {};
+    for (let cr = crA; cr < crB; cr++) if (jour[cr] === posteId) return true;
+    return false;
+  });
+}
+function blocsRepartition(iso) {
+  const crA = heureVersCr(data.reglages.midiDebut || "11:35"), crB = heureVersCr(data.reglages.midiFin || "13:30");
+  return [
+    { bande: "etude", titre: "Études", sousPostes: data.sousPostesEtude, cands: candidats(iso, data.posteEtude, 0, NB) },
+    { bande: "midi", titre: `Midi ${(data.reglages.midiDebut || "11:35").replace(":", "h")}–${(data.reglages.midiFin || "13:30").replace(":", "h")}`, sousPostes: data.sousPostesMidi, cands: candidats(iso, data.posteMidi, crA, crB) },
+  ];
+}
+async function affecter(iso, bande, aedId, sousPoste) {
+  try {
+    const r = await fetch("/api/repartition", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ date: iso, bande, aedId, sousPoste }),
+    });
+    if (r.ok) { data.repartitions = (await r.json()).repartitions; rendre(); }
+    else alert("Enregistrement refusé.");
+  } catch (e) { alert("Serveur injoignable — réessayez."); }
+}
+function htmlRepartition() {
+  const demain = prochainJourCours();
+  const lundi = demain ? lundiDeSemaine(demain) : lundiDeSemaine(aujourdhuiIso());
+  const dates = [];
+  const d = new Date(lundi + "T12:00:00");
+  for (let k = 0; k < 5; k++) { dates.push(isoLocal(d)); d.setDate(d.getDate() + 1); }
+  const cartes = dates.map((iso, k) => {
+    if (!estJourCours(iso)) return "";
+    const estDemain = iso === demain;
+    const sections = blocsRepartition(iso).map(({ bande, titre, sousPostes, cands }) => {
+      const rep = (data.repartitions[iso] || {})[bande] || {};
+      const compte = {};
+      for (const sp of Object.values(rep)) compte[sp] = (compte[sp] || 0) + 1;
+      const badges = sousPostes.map((sp) =>
+        `<span class="cpt" style="background:${compte[sp] ? "#dcfce7" : "#fee2e2"};color:${compte[sp] ? "#166534" : "#b91c1c"}">${ech(sp)} : ${compte[sp] || 0}</span>`).join(" ");
+      const lignes = cands.length ? cands.map((a) =>
+        `<div style="display:flex;align-items:center;gap:6px;padding:2px 0">
+          <span style="flex:1;font-size:12.5px;font-weight:${a.id === moi.aedId ? 700 : 500}">${ech(a.nom)}</span>
+          <select${moi.aedId && a.id !== moi.aedId ? " disabled title=\"Vous ne pouvez modifier que votre propre répartition\"" : ""} onchange="affecter('${iso}','${bande}','${a.id}',this.value)">
+            <option value="">—</option>
+            ${sousPostes.map((sp) => `<option${rep[a.id] === sp ? " selected" : ""}>${ech(sp)}</option>`).join("")}
+          </select>
+        </div>`).join("") : `<p class="aide">Aucun AED posté.</p>`;
+      return `<div style="margin-bottom:10px">
+        <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:2px">${ech(titre)} ${badges}</div>${lignes}
+      </div>`;
+    }).join("");
+    return `<div class="carte jour-carte"${estDemain ? ' style="border-color:#2563eb;border-width:2px"' : ""}>
+      <div style="font-size:13.5px;font-weight:700;margin-bottom:8px">${JOURS[k]} <span style="font-weight:400;color:#94a3b8">${frDate(iso)}</span>
+        ${estDemain ? '<span style="font-size:10.5px;background:#2563eb;color:#fff;border-radius:4px;padding:1px 6px;margin-left:4px">prochain jour</span>' : ""}</div>
+      ${sections}
+    </div>`;
+  }).join("");
+  return `<div class="carte">
+    <b style="font-size:14px">Auto-répartition — semaine du ${frDate(lundi)}</b>
+    <p class="aide" style="margin-top:4px">Répartissez-vous <b>la veille pour le lendemain</b> sur les salles d'étude et les sous-postes du midi.
+    Vos choix sont enregistrés immédiatement et visibles du CPE et de toute l'équipe.
+    ${moi.aedId ? "Vous ne modifiez que <b>votre propre ligne</b> (en gras)." : "<b style='color:#b91c1c'>Votre compte n'est pas encore relié à une fiche AED : prévenez la vie scolaire.</b>"}</p>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start">${cartes || "<p class='aide'>Aucun jour de cours cette semaine.</p>"}</div>`;
+}
+
+// ---------- Session ----------
+async function deconnexion() { await fetch("/api/deconnexion", { method: "POST" }); location.href = "/"; }
+async function changerMdp() {
+  const actuel = prompt("Mot de passe actuel :");
+  if (actuel === null) return;
+  const nouveau = prompt("Nouveau mot de passe (8 caractères minimum) :");
+  if (nouveau === null) return;
+  const r = await fetch("/api/mdp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ actuel, nouveau }) });
+  alert(r.ok ? "Mot de passe modifié." : "Échec : " + ((await r.json()).erreur || ""));
+}
+
+// ---------- Démarrage ----------
+(async () => {
+  try {
+    const rMoi = await fetch("/api/moi");
+    if (!rMoi.ok) { location.href = "/"; return; }
+    moi = await rMoi.json();
+    document.getElementById("qui").textContent = "👤 " + moi.nom;
+    const r = await fetch("/api/aed/data");
+    if (!r.ok) { document.getElementById("zone").innerHTML = "<div class='carte'><p class='aide'>Aucune donnée disponible pour le moment — le CPE doit d'abord enregistrer un planning.</p></div>"; return; }
+    data = await r.json();
+    document.getElementById("titre-app").textContent = data.titre || "Vie scolaire";
+    // repérer mon éventuelle fiche AED (nom du compte ≈ nom AED, pour la mise en gras)
+    if (!moi.aedId) moi.aedId = (data.aeds.find((a) => moi.nom && moi.nom !== "Utilisateur Grist" && a.nom.toLowerCase().includes(moi.nom.toLowerCase())) || {}).id;
+    const demain = prochainJourCours();
+    jourAffiche = demain || aujourdhuiIso();
+    lundiAffiche = lundiDeSemaine(jourAffiche);
+    aedAffiche = data.aeds[0]?.id;
+    rendre();
+    // rafraîchissement périodique (répartitions des collègues, plannings du CPE)
+    setInterval(async () => {
+      try {
+        const r2 = await fetch("/api/aed/data");
+        if (r2.ok) { data = await r2.json(); rendre(); }
+      } catch (e) {}
+    }, 30000);
+  } catch (e) {
+    document.getElementById("zone").innerHTML = "<div class='carte'><p class='aide'>Serveur injoignable.</p></div>";
+  }
+})();
+</script>
+</body>
+</html>
