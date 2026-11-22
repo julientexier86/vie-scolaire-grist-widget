@@ -40,6 +40,7 @@
     Reglages: {k: [], t: {titre: 'A', debut_annee: 'D', fin_annee: 'D', zone: 'T', alternance_mode: 'T', semaine_paire: 'T', semaine_impaire: 'T', poste_etude: 'A', poste_midi: 'A', midi_debut: 'T', midi_fin: 'T', capacite_principale: 'N', capacite_annexe: 'N', semaines_travaillees: 'N'}},
     PeriodesEtude: {k: ['periode_index'], t: {periode_index: 'N', debut: 'T', fin: 'T'}}
   };
+  const MIROIR_EXCLUS = new Set(['titre', 'posteEtude', 'posteMidi', 'capaPrincipale', 'capaAnnexe', 'semainesTravaillees']); // déjà portées par Reglages
   const CLES_STRUCTURELLES = new Set(['aeds', 'postes', 'semaines', 'planning', 'derogations', 'absencesAn', 'heuresJournal', 'repartitions', 'sousPostesMidi', 'sousPostesEtude']);
 
   // ---------- Valeurs ----------
@@ -248,7 +249,7 @@
     for (const v of r.vacances || []) add('Vacances', {source_id: v.id, nom: v.nom, debut: v.du, fin: v.au, donnees_completes_json: json(v)});
     add('Reglages', {titre: etat.titre, debut_annee: r.debutAnnee, fin_annee: r.finAnnee, zone: r.zone, alternance_mode: ['active', 'paireImpaire'].includes(alt.mode) ? alt.mode : 'active', semaine_paire: alt.semainePaire, semaine_impaire: alt.semaineImpaire, poste_etude: etat.posteEtude, poste_midi: etat.posteMidi, midi_debut: r.midiDebut || '11:35', midi_fin: r.midiFin || '13:30', capacite_principale: etat.capaPrincipale || 50, capacite_annexe: etat.capaAnnexe || 20, semaines_travaillees: etat.semainesTravaillees || 41});
     PERIODES_ETUDE.forEach(([debut, fin], i) => add('PeriodesEtude', {periode_index: i, debut, fin}));
-    if (rh) for (const [k, v] of Object.entries(etat)) if (!CLES_STRUCTURELLES.has(k) && v !== undefined) add('Parametres', {cle: k, valeur_json: json(v)});
+    if (rh) for (const [k, v] of Object.entries(etat)) if (!CLES_STRUCTURELLES.has(k) && !MIROIR_EXCLUS.has(k) && v !== undefined) add('Parametres', {cle: k, valeur_json: json(v)});
     return T;
   }
 
@@ -266,9 +267,10 @@
       const cibles = new Map(); for (const r of cible[nom]) { const c = cle(def, r); if (cibles.has(c)) throw new Error(`${nom} : clé en double (${c.replace(/\u0001/g, ' / ')})`); cibles.set(c, r); }
       const anciens = base && base[nom] ? new Map(base[nom].map(r => [cle(def, r), r])) : null;
       const ajouts = [], retraits = anciens ? [] : [...doublons];
+      const inutile = r => nom === 'EffectifsEtude' && vide(r.effectif); // une case vide n'a pas besoin de ligne
       for (const [c, r] of cibles) {
         const e = existants.get(c);
-        if (!e) { ajouts.push(r); continue; }
+        if (!e) { if (!inutile(r)) ajouts.push(r); continue; }
         const ref = (anciens && anciens.get(c)) || e;
         const diff = {};
         for (const col of Object.keys(def.t)) {
