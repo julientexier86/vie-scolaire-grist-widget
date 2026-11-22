@@ -107,11 +107,11 @@ const dansAnnee = (iso) => data.reglages.debutAnnee <= iso && iso <= data.reglag
 const estJourCours = (iso) => (new Date(iso + "T12:00:00").getDay() + 6) % 7 < 5 && dansAnnee(iso) && !estFerie(iso) && !estVacances(iso);
 const estAbsent = (aedId, iso) => data.absences.some((a) => a.aedId === aedId && a.du <= iso && iso <= a.au);
 
-function numeroSemaineIso(iso) {
-  const d = new Date(iso + "T12:00:00");
-  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
-  const debut = new Date(d.getFullYear(), 0, 1);
-  return Math.ceil((((d - debut) / 864e5) + 1) / 7);
+function numeroSemaineIso(iso) { // norme ISO 8601 (calcul en UTC : insensible à l'heure d'été)
+  const [y, m, j] = iso.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m - 1, j));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  return Math.ceil(((d - Date.UTC(d.getUTCFullYear(), 0, 1)) / 864e5 + 1) / 7);
 }
 function semainePourDate(iso) {
   const alt = data.reglages.alternance || {};
