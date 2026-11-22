@@ -12,8 +12,22 @@
   const MSG_COMPTES = 'Les comptes et les mots de passe sont gérés par Grist (partage du document).';
   const rep = (corps, statut) => ({statut: statut || 200, corps});
 
+  // Lundis (secondes UTC, minuit) de l'année scolaire absents de SemainesReelles. Grist n'ayant pas de
+  // planificateur, cette liste sert à compléter la table à l'ouverture du widget.
+  const JOUR = 86400, SEMAINE = 7 * JOUR;
+  function lundisManquants(debut, fin, existants) {
+    if (!Number.isFinite(debut) || !Number.isFinite(fin) || fin < debut) return [];
+    const pris = new Set((existants || []).map(Number));
+    const j = new Date(debut * 1000).getUTCDay(); // 0 = dimanche
+    let l = Math.floor(debut / JOUR) * JOUR - ((j + 6) % 7) * JOUR;
+    const res = [];
+    for (; l <= fin; l += SEMAINE) if (!pris.has(l)) res.push(l);
+    return res;
+  }
+
   // io : { lire(nom) -> Promise<[{id,...}]> (rejet si accès refusé), appliquer(actions) -> Promise }
   function creer(io) {
+    let completee = false;
     let base = null; // lignes cibles au dernier chargement/enregistrement (fusion à trois voies)
 
     async function lireTout() {
@@ -24,6 +38,18 @@
       return t;
     }
     const rhLisible = t => !!t.DossiersRH;
+
+    // Ajoute les lundis manquants. Silencieux en cas de refus : la planification n'en dépend pas.
+    async function completerSemaines() {
+      try {
+        const [reg, sem] = await Promise.all([io.lire('Reglages'), io.lire('SemainesReelles')]);
+        const r = reg && reg[0]; if (!r) return 0;
+        const manquants = lundisManquants(Number(r.debut_annee), Number(r.fin_annee), sem.map(x => x.lundi));
+        if (!manquants.length) return 0;
+        await io.appliquer([['BulkAddRecord', 'SemainesReelles', manquants.map(() => null), {lundi: manquants}]]);
+        return manquants.length;
+      } catch (e) { return 0; }
+    }
 
     async function etat() {
       const t = await lireTout();
@@ -45,7 +71,9 @@
       try {
         if (chemin === '/api/moi') {
           const t = await lireTout();
-          return rep({login: 'grist', nom: 'Utilisateur Grist', role: rhLisible(t) ? 'cpe' : 'aed'});
+          const cpe = rhLisible(t);
+          if (cpe && !completee) { completee = true; await completerSemaines(); }
+          return rep({login: 'grist', nom: 'Utilisateur Grist', role: cpe ? 'cpe' : 'aed'});
         }
         if (chemin === '/api/etat' && methode === 'GET') {
           const {e, t} = await etat();
@@ -131,5 +159,5 @@
     return true;
   }
   if (typeof window !== 'undefined' && window.grist) installer(window);
-  return {creer, installer, ioWidget};
+  return {creer, installer, ioWidget, lundisManquants};
 });
