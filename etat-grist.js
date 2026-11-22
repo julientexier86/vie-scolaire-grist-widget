@@ -253,11 +253,38 @@
     return T;
   }
 
+
+  // ---------- Cohérence avant écriture ----------
+  // Équivalent de l'intention de l'ancienne application (« les créneaux associés seront effacés ») :
+  // quand un AED, un poste ou une semaine disparaît, ce qui s'y rapportait ailleurs disparaît aussi,
+  // faute de quoi Grist (qui contrôle les références) refuserait l'enregistrement.
+  function purger(etat) {
+    const e = JSON.parse(JSON.stringify(etat));
+    const aeds = new Set((e.aeds || []).map(a => a.id)), postes = new Set((e.postes || []).map(p => p.id));
+    const nettoyer = plan => {
+      for (const aid of Object.keys(plan || {})) {
+        if (!aeds.has(aid)) { delete plan[aid]; continue; }
+        for (const jour of Object.keys(plan[aid] || {})) {
+          const crans = plan[aid][jour] || {};
+          for (const [cr, pid] of Object.entries(crans)) if (!postes.has(pid)) delete crans[cr];
+        }
+      }
+    };
+    for (const s of e.semaines || []) nettoyer(s.planning);
+    for (const d of Object.values(e.derogations || {})) nettoyer(d);
+    if (e.planning && !(e.semaines || []).some(s => s.planning === e.planning)) nettoyer(e.planning);
+    for (const k of ['absences', 'indispos']) for (const aid of Object.keys(e[k] || {})) if (!aeds.has(aid)) delete e[k][aid];
+    for (const k of ['absencesAn', 'heuresJournal']) if (Array.isArray(e[k])) e[k] = e[k].filter(x => aeds.has(x.aedId));
+    if (Array.isArray(e.besoins)) e.besoins = e.besoins.filter(b => postes.has(b.posteId));
+    for (const bandes of Object.values(e.repartitions || {})) for (const gens of Object.values(bandes || {})) for (const aid of Object.keys(gens || {})) if (!aeds.has(aid)) delete gens[aid];
+    return e;
+  }
+
   // ---------- Différences ----------
   // actuel : {table: [{id, ...colonnes Grist}]} ; cible : sortie d'etatVersTables.
   function calculerActions(actuel, cible, options) {
     const sansRH = !!(options && options.sansRH);
-    const phase1 = [], phase2 = [], resume = {ajouts: 0, modifications: 0, suppressions: 0};
+    const phase1 = [], phase2 = [], phase3 = new Map(), resume = {ajouts: 0, modifications: 0, suppressions: 0};
     const protege = new Set((options && options.tablesIgnorees) || ['PeriodesEtude']);
     const base = options && options.base; // lignes cibles au dernier chargement : fusion à trois voies
     for (const [nom, def] of Object.entries(TABLES)) {
@@ -281,13 +308,17 @@
       }
       // Avec une base, seules les lignes que l'utilisateur a réellement retirées sont supprimées.
       for (const [c, e] of existants) if (!cibles.has(c) && (!anciens || anciens.has(c))) retraits.push(e.id);
-      if (retraits.length) { (def.leaf ? phase1 : phase2).push(['BulkRemoveRecord', nom, retraits]); resume.suppressions += retraits.length; }
+      if (retraits.length) { const a = ['BulkRemoveRecord', nom, retraits]; if (def.leaf) phase1.push(a); else phase3.set(nom, a); resume.suppressions += retraits.length; }
       if (ajouts.length) {
         const colonnes = {}; for (const col of Object.keys(def.t)) colonnes[col] = ajouts.map(r => r[col]);
         phase2.push(['BulkAddRecord', nom, ajouts.map(() => null), colonnes]); resume.ajouts += ajouts.length;
       }
     }
-    return {phases: [phase1, phase2].filter(p => p.length), resume};
+    // Les lignes dont d'autres dépendent (AED, postes, semaines…) ne sont retirées qu'une fois leurs
+    // dépendances parties et les références mises à jour ; une table par enregistrement, dans cet ordre.
+    const ordre = ['DossiersRH', 'SemainesDerogatoires', 'SemainesTypes', 'Postes', 'AED', 'SousPostes', 'Parametres'];
+    const phases3 = [...phase3.keys()].sort((a, b) => ordre.indexOf(a) - ordre.indexOf(b)).map(n => [phase3.get(n)]);
+    return {phases: [phase1, phase2, ...phases3].filter(p => p.length), resume};
   }
 
   // ---------- Espace AED ----------
@@ -315,5 +346,5 @@
     return ex ? (ex.sous_poste === sousPoste ? [] : [['UpdateRecord', 'Repartitions', ex.id, {sous_poste: sousPoste}]]) : [['AddRecord', 'Repartitions', null, {date: secondes, bande, aed_source_id: aedId, sous_poste: sousPoste}]];
   }
 
-  return {TABLES, tablesVersEtat, etatVersTables, calculerActions, donneesPourAed, actionRepartition, versGrist, depuisGrist};
+  return {TABLES, tablesVersEtat, etatVersTables, calculerActions, purger, donneesPourAed, actionRepartition, versGrist, depuisGrist};
 });

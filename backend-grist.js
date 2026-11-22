@@ -84,7 +84,7 @@
           if (!corps || !Array.isArray(corps.aeds) || !Array.isArray(corps.postes)) return rep({erreur: 'données invalides'}, 400);
           const t = await lireTout();
           if (!rhLisible(t)) return rep({erreur: 'accès réservé aux propriétaires du document'}, 403);
-          const cible = G.etatVersTables(corps);
+          const cible = G.etatVersTables(G.purger(corps));
           const plan = G.calculerActions(t, cible, {base: base || undefined});
           await appliquer(plan.phases);
           base = cible;
